@@ -1,0 +1,34 @@
+---
+title: "R Notebook"
+output:
+---
+
+Remove everything
+```{r}
+rm(list=ls()) # clear out all variables in current session 
+setwd("~")
+```
+
+Set wd
+```{r}
+wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+# wd = ""  # enter you wd
+
+setwd(wd)
+```
+
+Load Packages
+```{r}
+source("01_load_packages.R")  # load package file
+
+install(a = FALSE) # set a to TRUE if you want to install packages in 01_load_packages.R file
+load_pack() # loading all packages after installation
+```
+Load Data
+```{r}
+source("02_data_cleaning.R") # load data file
+ 
+inspect(cars) # dataframe used 
+```
+
+

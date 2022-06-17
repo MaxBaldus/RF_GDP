@@ -1,11 +1,19 @@
-a = 0
-if(a == 1){
-  install.packages("randomForest")
+# install packages
+install = function(a){
+  
+  if(a == TRUE){
+    install.packages("randomForest")
+    
+    return("Packages installed")
+  }
 }
 
-
 # load packages
-library(keras)
+load_pack = function(){
+  
+  library(randomForest)
+  
+  return("Packages loaded")
+}
 
-plot(cars)
 
