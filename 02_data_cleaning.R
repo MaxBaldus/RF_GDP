@@ -2,7 +2,7 @@
 
 # everything as a function 
 inspect = function(df){
-  # read.csv()
+  # df = read.csv("input/..")
   
   l = list(head(df), str(df)) # put everything into list 
   return(l)
@@ -11,3 +11,5 @@ inspect = function(df){
 #read_csv()   
 # print(head(cars))
 # print(str(cars))
+
+plot(cars)
