@@ -27,8 +27,32 @@ load_pack() # loading all packages after installation
 Load Data
 ```{r}
 source("02_data_cleaning.R") # load data file
- 
-inspect(cars) # dataframe used 
+
+df = read.csv("input/current.csv") # load dataframe 
+varlist_df = colnames(df)
+varlist_fred = fredqd_description # description of the quartely Fred data set
+
+
+data = inspect(df) # list with all relevant component extracted 
 ```
+df - 255:247
+length(varlist$fred) - 248
+
+helper:
+```{r}
+# see which variables of the dataframe are in the fred description
+varlist_df %in% varlist_fred$fred # returns a boolean TRUE or FALSE value depending on whether the element is found or not
+
+which(varlist_df %in% varlist_fred$fred == FALSE) # gives the indices, that are false
+
+varlist_df[c(which(varlist_df %in% varlist_fred$fred == FALSE))]
+```
+
+
+AR & RW's with different windows as benchmark:
+```{r}
+source("03_benchmark.R") # load data file
+```
+
 
 
