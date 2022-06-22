@@ -7,6 +7,7 @@ clean = function(df){
   
   # handle NA's
   
+  # if Na in column => fill NA's entry with mean/mode ?? -> use median to respect outliers
   
   # make each variable in the stationary, according to the entry of first row the variable: transform accordingly
   # 5 - log differences 
