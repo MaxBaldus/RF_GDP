@@ -26,17 +26,33 @@ load_pack() # loading all packages after installation
 ```
 Load Data
 ```{r}
-source("02_data_cleaning.R") # load data file
-
-df = read.csv("input/current.csv") # load dataframe 
-varlist_df = colnames(df)
+df_raw = read.csv("input/current.csv") # load dataframe 
+varlist_df = colnames(df_raw)
+# length(varlist$fred) - 248
 varlist_fred = fredqd_description # description of the quartely Fred data set
 
-
-data = inspect(df) # list with all relevant component extracted 
+print(str(df_raw))
+print(head(df_raw))
 ```
-df - 255:247
-length(varlist$fred) - 248
+```{r}
+dim(df)
+
+# columns with NA's
+str(df[, colSums(is.na(df)) > 0])
+
+```
+Dimensions of df: 255 rows and 246 variables (excluding the date column)
+
+How to deal with NA entries??
+e.g. df[,"TLBSNNBBDIx"] - last entry missing 
+-> don't want to loose rows: Replace Using Mean, Median, or Mode ??
+
+
+Clean Data frame
+```{r}
+source("02_data_cleaning.R") # load data file
+data = clean(df_raw) # list with all relevant component extracted 
+```
 
 helper:
 ```{r}
@@ -55,6 +71,5 @@ source("03_benchmark.R") # load data file
 ```
 
 
-This is a test 
 
 

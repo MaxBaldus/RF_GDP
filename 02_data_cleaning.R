@@ -1,33 +1,28 @@
 # data from https://research.stlouisfed.org/econ/mccracken/fred-databases/
 
-inspect = function(df){
+clean = function(df){
   
   df_raw = df
-  ind = df_raw[2,]
+  gdp_raw = df_raw[-(1:2),2] # neglect first 2 rows of gdp
   
-  # make each variable stationary, according to the entry of first row the variable: transform accordingly
+  # handle NA's
   
+  
+  # make each variable in the stationary, according to the entry of first row the variable: transform accordingly
   # 5 - log differences 
-  for (v in 1:length(dim(df)[2])) {  # 
-    if (df[2,v] == 5.000) { # if entry is 5.000 => apply 
-      df[,v] = diff(log(df[,v])) # apply function with differences 
+  for (v in 2:dim(df)[2]) {  # 2:247
+    if (df[2,v] == 5) { # if entry is 5.000 => apply log differences
+      df[-(1:3),v] = diff(log(df[-c(1,2),v])) # apply function with differences starting with third row: loosing first observation
     }
   }
   
+  # 4 - next number 
   
-  df_clean = df[-(1:2),]
   dates = as.Date(df[-(1:2),1], format = "%m/%d/%Y") # character vector with dates: convert to date class (neglecting first 2 rows)
-  gdp = df_clean[,2] # neglect first 2 rows
   
-  # output raw dataframe
-  print(dim(df_raw))
-  print(str(df_raw))
-  print(head(df_raw))
+  print(str(df))
+  print(head(df))
   
-  # output stationary df
-  print(df)
-  
-  
-  l = list(dates = dates, gdp = gdp, df = df_clean) # put everything into list I want to return
+  l = list(dates = dates, gdp_raw = gdp_raw, df_clean = df) # put everything into list I want to return
   return(l)
 }
