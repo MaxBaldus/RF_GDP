@@ -1,5 +1,10 @@
 # data from https://research.stlouisfed.org/econ/mccracken/fred-databases/
 
+
+inspect = function(df){
+  # all helper function for inspection in here .. 
+}
+
 clean = function(df){
   
   df_raw = df
