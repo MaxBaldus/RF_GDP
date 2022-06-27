@@ -35,10 +35,10 @@ print(str(df_raw))
 print(head(df_raw))
 ```
 ```{r}
-dim(df)
+dim(df_raw)
 
 # columns with NA's
-str(df[, colSums(is.na(df)) > 0])
+str(df_raw[, colSums(is.na(df_raw)) > 0])
 
 ```
 Dimensions of df: 255 rows and 246 variables (excluding the date column)
@@ -68,6 +68,15 @@ varlist_df[c(which(varlist_df %in% varlist_fred$fred == FALSE))]
 AR & RW's with different windows as benchmark:
 ```{r}
 source("03_benchmark.R") # load data file
+
+benchmarks_fit = ar(gdp_raw)
+
+rw_fit = benchmarks_fit$rw_fit
+arma_fit = benchmarks_fit$arma_fit
+
+rw_fit
+arma_fit
+
 ```
 
 

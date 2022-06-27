@@ -6,7 +6,9 @@ install = function(a){
     install.packages("devtools")
     install_github("cykbennie/fbi") # R Package to read QD and MD data
     install.packages("randomForest")
-    install.packages("xts")
+    # install.packages("xts")
+    install.packages("mFilter")
+    install.packages("tsapp")
     
     return("Packages installed")
     
@@ -20,9 +22,11 @@ load_pack = function(){
   
   library(devtools)
   library(fbi)
-  
   library(randomForest)
-  library(xts)
+  # library(xts)
+  library(mFilter)
+  library(tsapp)
+  
   
   return("Packages loaded")
 }
