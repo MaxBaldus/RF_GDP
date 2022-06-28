@@ -24,10 +24,15 @@ clean = function(df){
   
   # 4 - next number 
   
+  # get the dates seperately
   dates = as.Date(df[-(1:2),1], format = "%m/%d/%Y") # character vector with dates: convert to date class (neglecting first 2 rows)
   
-  print(str(df))
-  print(head(df))
+  # training data / data for estimation 
+  # "1959-03-01" - "2017-12-01"
+  # => forecasting 5 years 
+  
+  print("Structure of Raw Dataframe" + str(df))
+  print("First rows of Raw Dataframe" + head(df))
   
   l = list(dates = dates, gdp_raw = gdp_raw, df_clean = df) # put everything into list I want to return
   return(l)

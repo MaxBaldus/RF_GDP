@@ -14,7 +14,7 @@ ar = function(gdp){
   ts.plot(gdp, xlab="quarter", ylab="GDP", type="l") # plot ts object
   
   #--------------------------------------------------------------------------
-  # Out of sample forecast
+  # Out of sample forecast of growth rate / returns (log difference)
   
   # 1) 1st order difference (extracting the trend)
   gdp_d = diff(gdp)
@@ -23,11 +23,11 @@ ar = function(gdp){
   # stationary test: dickey-fuller test 
   
   # acf and pacf
-  acfpacf(gdp_d,50,HV="V")
+  tsapp::acfpacf(gdp_d,50,HV="V")
   
-  # centering data: 
-  # gdp_ct = gdp_d - mean(gdp_d)
-  gdp_ct = diff(gdp)
+  # centering data s.t. mean is 0 
+  gdp_ct = gdp_d - mean(gdp_d)
+  # gdp_ct = diff(gdp) # not centering
   
   # 2) removing cyclical component? -> via periodogram ??
   
@@ -62,7 +62,8 @@ ar = function(gdp){
   
   # --------------------------------------------------------------------------------------------------------
   # in sample forecast: fit everything with training data & then forecast test data
-  
+  # rolling windows - fix parameters and forecast each season's value, using a  new value iteratively
+  # to avoid mean convergence too fast (since arma cannot do long-term forecasts since lim E[gdp^hat] = 0)
   
   # ---------------------------------------------------------------------- 
   # Hodrick-Prescott Filter 
@@ -86,11 +87,8 @@ ar = function(gdp){
   
   return(list(rw_fit = rw, arma_fit = arma_fit))
   
-  
-  
+
 }
 
 
 # add in inspection with periodogram etc. to make gdp stationary .. (if time and needed in the end)
-
-# rw forecast s
