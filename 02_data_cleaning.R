@@ -25,6 +25,8 @@ clean = function(df){
   
   df_clean = as.data.frame(matrix(0, nrow = dim(df)[1]-3, ncol = dim(df[2]))) # create empty dataframe
   
+  # don't have the colnames in df_clean !!!
+  
   # get the dates
   dates = as.Date(df[-(1:2),1], format = "%m/%d/%Y") # character vector with dates: convert to date class 
   df_clean[,1] = dates[-1] # append dates to dataframe: leaving out first date since lost due to transformation
