@@ -26,31 +26,21 @@ load_pack() # loading all packages after installation
 ```
 Load Data
 ```{r}
-df_raw = read.csv("input/current.csv") # load dataframe 
-varlist_df = colnames(df_raw)
-# length(varlist$fred) - 248
-varlist_fred = fredqd_description # description of the quartely Fred data set
-
-print(str(df_raw))
-print(head(df_raw))
+df = read.csv("input/current.csv") # load dataframe 
 ```
+
+Inspect the raw Data
 ```{r}
-dim(df_raw)
+source("02_data_cleaning.R") # load data-cleaning file
 
-# columns with NA's
-str(df_raw[, colSums(is.na(df_raw)) > 0])
-
+inspect(df_raw)
 ```
+
 Dimensions of df: 255 rows and 246 variables (excluding the date column)
-
-How to deal with NA entries??
-e.g. df[,"TLBSNNBBDIx"] - last entry missing 
--> don't want to loose rows: Replace Using Mean, Median, or Mode ??
-
 
 Clean Data frame
 ```{r}
-source("02_data_cleaning.R") # load data file
+source("02_data_cleaning.R") # load data-cleaning file
 data = clean(df_raw) # list with all relevant component extracted 
 ```
 
@@ -58,10 +48,15 @@ helper:
 ```{r}
 # see which variables of the dataframe are in the fred description
 varlist_df %in% varlist_fred$fred # returns a boolean TRUE or FALSE value depending on whether the element is found or not
-
 which(varlist_df %in% varlist_fred$fred == FALSE) # gives the indices, that are false
-
 varlist_df[c(which(varlist_df %in% varlist_fred$fred == FALSE))]
+```
+
+Plots:
+```{r}
+source("04_plots.R")
+gdp_plot()
+
 ```
 
 
@@ -78,7 +73,8 @@ rw_fit
 arma_fit
 
 ```
-
+- trend removed via 1.st order differencing
+- PACF and ACF suggest using a ARMA[1,1] model
 
 
 

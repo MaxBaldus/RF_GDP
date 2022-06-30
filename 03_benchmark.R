@@ -7,17 +7,15 @@ ar = function(gdp){
   # if you want the character form of date in a time series object, you should consider using xts 
   # use xts package for a nicer plot
   
-  gdp = ts(data$gdp, start = c(1959,1), frequency = 4) 
+  gdp_ts = ts(gdp, start = c(1959,1), frequency = 4) 
   # The first number in the start parameter is the number of the period depending on the frequency, 
   # while the second number is the first incident in that period (as not all series begin at January or at Sunday).
-  
-  ts.plot(gdp, xlab="quarter", ylab="GDP", type="l") # plot ts object
   
   #--------------------------------------------------------------------------
   # Out of sample forecast of growth rate / returns (log difference)
   
   # 1) 1st order difference (extracting the trend)
-  gdp_d = diff(gdp)
+  gdp_d = diff(gdp_ts)
   ts.plot(gdp_d, xlab="quarter", ylab="GDP_difference", type="l") 
   
   # stationary test: dickey-fuller test 
@@ -35,7 +33,7 @@ ar = function(gdp){
   rw = arima(gdp_ct, order = c(0,0,0), include.mean = FALSE)
   
   # fitting ARMA[1,1] model
-  arma_fit = arima(gdp_ct, order = c(4,0,4)) 
+  arma_fit = arima(gdp_ct, order = c(1,0,1)) 
   
   # (from 01_forecasting..)
   # significance test 
@@ -60,11 +58,24 @@ ar = function(gdp){
   ts.plot(gdp,ylim = c(4500, 22000), xlim = c(1959,2027), xlab="quarter", ylab="GDP ARMA forecast", type="l")
   lines(gdp_forecasts_arma, col = "red")
   
-  # --------------------------------------------------------------------------------------------------------
-  # in sample forecast: fit everything with training data & then forecast test data
-  # rolling windows - fix parameters and forecast each season's value, using a  new value iteratively
-  # to avoid mean convergence too fast (since arma cannot do long-term forecasts since lim E[gdp^hat] = 0)
+  return(list(rw_fit = rw, arma_fit = arma_fit))
   
+
+}
+
+ar_rolling = function(gdp){
+  # ---------------------------------------------------------------------- 
+  # in sample forecast: fit everything with in-sample data (training data) & then forecast  test data (out of sample data)
+  # using rolling windows - fix parameters and forecast each season's value, 
+  # using a new value iteratively to avoid mean convergence too fast 
+  # (since arma cannot do long-term forecasts since lim E[gdp^hat] = 0 (if gdp centered))
+  
+  # using model specifications in 
+}
+# add in inspection with periodogram etc. to make gdp stationary .. (if time and needed in the end)
+
+
+hp = function(gdp){
   # ---------------------------------------------------------------------- 
   # Hodrick-Prescott Filter 
   
@@ -73,22 +84,8 @@ ar = function(gdp){
   hp = hpfilter(gdp, freq = 1600)
   hp_res = gdp - hp$trend - hp$cycle # subtracting all components for original time series
   
-  par(mfrow=c(2,2))
-  ts.plot(gdp, xlab="quarter", ylab="GDP", type="l", col = "blue") 
-  ts.plot(hp$trend, xlab="quarter", ylab="GDP_trend", type="l", col = "red") 
-  ts.plot(hp$cycle, xlab="quarter", ylab="GDP_cycle", type="l", col = "green")
-  ts.plot(hp_res, xlab="quarter", ylab="Resiudals", type="l", col = "black") 
-  par(mfrow=c(1,1))
-  
-  # acf and pacf
-  # acfpacf(hp_res,50,HV="V")  -> weird correlations??
+  ts.plot(gdp, hp$trend, hp$cycle, hp_res,  xlab="Time", ylab="GDP", type="l", col = "blue", main = "HP Filter GDP") 
+  legend("bottomright", legend = c("gdp", "Trend component", "Cyclical component", "residuals"), 
+         col = c("blue", "red", "green", "black"), lty = 1, cex = 0.5)
   # "don't use HP filter for forecasting"
-  
-  
-  return(list(rw_fit = rw, arma_fit = arma_fit))
-  
-
 }
-
-
-# add in inspection with periodogram etc. to make gdp stationary .. (if time and needed in the end)
