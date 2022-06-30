@@ -12,9 +12,10 @@ setwd("~")
 Set wd
 ```{r}
 wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+wd_office = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 # wd = ""  # enter you wd
 
-setwd(wd)
+setwd(wd_office)
 ```
 
 Load Packages
@@ -33,7 +34,7 @@ Inspect the raw Data
 ```{r}
 source("02_data_cleaning.R") # load data-cleaning file
 
-inspect(df_raw)
+inspect(df)
 ```
 
 Dimensions of df: 255 rows and 246 variables (excluding the date column)
@@ -41,7 +42,7 @@ Dimensions of df: 255 rows and 246 variables (excluding the date column)
 Clean Data frame
 ```{r}
 source("02_data_cleaning.R") # load data-cleaning file
-data = clean(df_raw) # list with all relevant component extracted 
+data = clean(df) # list with all relevant component extracted 
 ```
 
 helper:

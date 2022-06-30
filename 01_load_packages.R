@@ -3,12 +3,15 @@ install = function(a){
   
   if(a == TRUE){
     
+    install.packages("usethis")
     install.packages("devtools")
+    library(devtools)
     install_github("cykbennie/fbi") # R Package to read QD and MD data
     install.packages("randomForest")
     # install.packages("xts")
     install.packages("mFilter")
     install.packages("tsapp")
+    
     
     return("Packages installed")
     
