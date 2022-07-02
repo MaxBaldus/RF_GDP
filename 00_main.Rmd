@@ -12,10 +12,10 @@ setwd("~")
 Set wd
 ```{r}
 wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
-wd_office = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
+# wd_office = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 # wd = ""  # enter you wd
 
-setwd(wd_office)
+setwd(wd)
 ```
 
 Load Packages
@@ -25,6 +25,7 @@ source("01_load_packages.R")  # load package file
 install(a = FALSE) # set a to TRUE if you want to install packages in 01_load_packages.R file
 load_pack() # loading all packages after installation
 ```
+
 Load Data
 ```{r}
 df = read.csv("input/current.csv") # load dataframe 
@@ -33,7 +34,6 @@ df = read.csv("input/current.csv") # load dataframe
 Inspect the raw Data
 ```{r}
 source("02_data_cleaning.R") # load data-cleaning file
-
 inspect(df)
 ```
 
@@ -77,5 +77,5 @@ arma_fit
 - trend removed via 1.st order differencing
 - PACF and ACF suggest using a ARMA[1,1] model
 
-
+Rolling window ?? -> also for RW..
 
