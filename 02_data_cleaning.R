@@ -82,7 +82,7 @@ clean = function(df){
     }
   }
   
-  # training data / data for estimation 
+  # training data / data for estimation via rolling window
   # "1959-03-01" - "2017-12-01"
   # => forecasting 5 years 
   

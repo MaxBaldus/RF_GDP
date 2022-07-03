@@ -53,13 +53,6 @@ which(varlist_df %in% varlist_fred$fred == FALSE) # gives the indices, that are 
 varlist_df[c(which(varlist_df %in% varlist_fred$fred == FALSE))]
 ```
 
-Plots:
-```{r}
-source("04_plots.R")
-gdp_plot()
-
-```
-
 
 AR & RW's with different windows as benchmark:
 ```{r}

@@ -63,17 +63,24 @@ ar = function(gdp){
 
 }
 
+# add in inspection with periodogram etc. to make gdp stationary .. (if time and needed in the end)
+
 ar_rolling = function(gdp){
   # ---------------------------------------------------------------------- 
   # in sample forecast: fit everything with in-sample data (training data) & then forecast  test data (out of sample data)
-  # using rolling windows - fix parameters and forecast each season's value, 
+  # using rolling windows - fix (actually estimate!!!) parameters and forecast each season's value, up to last value N
+  # forecasting 5 years * 4 values per year = 20 values for first out-of-sample forecasts
+  # then decreasing to 19 values for next out-of-sample forecast 
+  # ... and so on .. 
+  
+  # ???
   # using a new value iteratively to avoid mean convergence too fast 
   # (since arma cannot do long-term forecasts since lim E[gdp^hat] = 0 (if gdp centered))
   
-  # using model specifications in 
+  # corona forecast will give huge forecasting error => stop forecasting before corona ?
+  # but since not in in-sample data => can just stop there (no problem)
 }
-# add in inspection with periodogram etc. to make gdp stationary .. (if time and needed in the end)
-
+# no extra rolling window function .. 
 
 hp = function(gdp){
   # ---------------------------------------------------------------------- 

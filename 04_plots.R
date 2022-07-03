@@ -1,4 +1,4 @@
-# define ggplot environemnt => put plots in here ?? 
+# define ggplot environemnt => do plots again .. nice for paper .. 
 
 gdp_plot = function(gdp){
   
@@ -7,6 +7,6 @@ gdp_plot = function(gdp){
   # if you want the character form of date in a time series object, you should consider using xts 
   # use xts package for a nicer plot
   
-  ts.plot(gdp, xlab="Time", ylab="GDP", type="l") # plot ts object
+  # ts.plot(gdp, xlab="Time", ylab="GDP", type="l") # plot ts object
   
 }
