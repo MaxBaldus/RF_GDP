@@ -44,7 +44,6 @@ Clean Data frame
 source("02_data_cleaning.R") # load data-cleaning file
 data = clean(df) # list with all relevant component extracted 
 ```
-
 helper:
 ```{r}
 # see which variables of the dataframe are in the fred description
@@ -52,6 +51,8 @@ varlist_df %in% varlist_fred$fred # returns a boolean TRUE or FALSE value depend
 which(varlist_df %in% varlist_fred$fred == FALSE) # gives the indices, that are false
 varlist_df[c(which(varlist_df %in% varlist_fred$fred == FALSE))]
 ```
+Last value available: "2022-03-01"
+
 
 
 AR & RW's with different windows as benchmark:
@@ -70,5 +71,16 @@ arma_fit
 - trend removed via 1.st order differencing
 - PACF and ACF suggest using a ARMA[1,1] model
 
-Rolling window ?? -> also for RW..
+Rolling window -> also for RW..
+
+
+
+
+
+Forecast evaluation
+-> evaluate forecasts using:
+MAE, MSE
+and possibly some tests: Diebold-Marino, Superior predictive ability test, model confidence sets
+-> into extra file: help functions??
+
 

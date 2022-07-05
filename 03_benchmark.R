@@ -11,6 +11,8 @@ ar = function(gdp){
   # The first number in the start parameter is the number of the period depending on the frequency, 
   # while the second number is the first incident in that period (as not all series begin at January or at Sunday).
   
+  ts.plot(gdp_ts, xlab="Time", ylab="GDP", type="l") # plot ts object
+  
   #--------------------------------------------------------------------------
   # Out of sample forecast of growth rate / returns (log difference)
   
@@ -25,7 +27,7 @@ ar = function(gdp){
   
   # centering data s.t. mean is 0 
   gdp_ct = gdp_d - mean(gdp_d)
-  # gdp_ct = diff(gdp) # not centering
+  # gdp_ct = diff(gdp_ts) # not centering
   
   # 2) removing cyclical component? -> via periodogram ??
   
@@ -38,11 +40,19 @@ ar = function(gdp){
   # (from 01_forecasting..)
   # significance test 
   # Residual analysis
-  # information criteria
+  # resiual check: white-noise ?
+  # information criteria -> can be left out: or only compare RW and choosen ARMA model based on ACF and PACF
   # QQ plot
+  
+  
+  # significance tests
+  # model comparison via Information criteria 
+  
+  # fit model to the data via plot
   
   # Forecasting
   h_max = 20 #forecast horizon: 5 years (i.e. 2o quarters)
+  
   
   # Predictions
   rw_pred = predict(rw, h_max)
@@ -57,13 +67,22 @@ ar = function(gdp){
   
   ts.plot(gdp,ylim = c(4500, 22000), xlim = c(1959,2027), xlab="quarter", ylab="GDP ARMA forecast", type="l")
   lines(gdp_forecasts_arma, col = "red")
+  # include 95% CI -> x-values?
+  lines(gdp_forecasts_arma + 1.96*sd(gdp_forecasts_arma),lwd=2, col = "orange")
+  lines(gdp_forecasts_arma - 1.96*sd(gdp_forecasts_arma),lwd=2, col = "orange")
+  legend("bottomright", legend = c("Prediticion arma model", "+ 95% Confidence intervall", "-95% Confidence intervall"), 
+         col = c("red", "orange", "orange"), lty = 1, cex = 0.5)
+
+  
+  
+  
   
   return(list(rw_fit = rw, arma_fit = arma_fit))
-  
-
 }
 
 # add in inspection with periodogram etc. to make gdp stationary .. (if time and needed in the end)
+# if ar coefficient large => might want to use ARFIMA ???
+# + additional: model variance via a GARCH (ATSA book)
 
 ar_rolling = function(gdp){
   # ---------------------------------------------------------------------- 
@@ -79,6 +98,27 @@ ar_rolling = function(gdp){
   
   # corona forecast will give huge forecasting error => stop forecasting before corona ?
   # but since not in in-sample data => can just stop there (no problem)
+  
+  # use 10_nikkei_arfima -> save forecast in entry matrix
+  
+  # possibilities: 
+  # each step reduce prediction / forecast horizon by 1 step, s.t. I don't forecast beyond 2022 e.g. when using last 3 observations
+  # s.t. can still evaluate forecast when using last observation in 2021
+  # => but: then have only 1 entry for the 5 day ahead forecast, since can only use Q12017 to forecast Q12022
+  # but: might be better since not that much data available overall 
+  
+  # or:
+  # need to cut-off training data 10 years before (2012)?? otherwise cannot forecast 5 years ahead with using last datapoint
+  # => last datapoint used is then Q42016 
+  # nin = # number of in-sample data  
+   
+  
+  # add name to each row: i.e. 1:current row - 1 = in sample observations used to forecast 
+  
+  # insert true gdp values in every 2nd column 
+  
+  # compute mse & mae: using 10_out_of_sample.r -> into help function.R 
+  # compute other statistics if time .. 
 }
 # no extra rolling window function .. 
 
