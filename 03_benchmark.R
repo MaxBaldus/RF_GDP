@@ -114,13 +114,49 @@ ar_rolling = function(gdp){
    
   
   # add name to each row: i.e. 1:current row - 1 = in sample observations used to forecast 
-  
   # insert true gdp values in every 2nd column 
-  
   # compute mse & mae: using 10_out_of_sample.r -> into help function.R 
-  # compute other statistics if time .. 
+  # compute other statistics if time ..
+  
+  # Nobs <- length(rk_parzen)  
+  
+  # zeros <- rep(0,(Nobs-Nin)*(2*length(forchor)))
+  # result_max <- matrix(zeros,Nobs-Nin,2*length(forchor))
+  # 
+  # for(i in Nin:(Nobs-1)){
+  #   outfit2 <- arfima::arfima(samp[1:i],order=orderfit, fixed = 
+  #             list(phi=outfit$modes[[1]]$phi, theta=outfit$modes[[1]]$theta, frac=outfit$modes[[1]]$dfrac)) 
+  #   # we estimate the model outfit chosen above, for the new data samples
+  #   
+  #   p <- predict(outfit2,n.ahead=max(forchor),prop.use = 100)
+  #   # we use the whole history for our forecasts, prop.use = 100
+  #   # p contains the forecasts for log rv
+  #   
+  #   # we calculate the forecasts for rv
+  #   # and consider the bias correction
+  #   # based on the forecast variance p[[1]]$exactVar[forchor]
+  #   # (see PhD Thesis by Justin Veenstra, author of the arfima package, 
+  #   # for the computation of p[[1]]$exactVar)
+  #   rvnew <- exp(p[[1]]$Forecast+p[[1]]$exactVar/2) # calculates forecasts for rv
+  #   
+  #   # we feed results in the results matrix
+  #   result_max[i-Nin+1,2*(1:length(forchor))-1] <- rvnew[forchor]
+  # }
+  
+  # feed into real results:
+  # result_max[1:(Nobs-Nin),2] <- rk_parzen[(Nin+1):Nobs]; # first column: use all RV's
+  # 
+  # for (j in 2:length(forchor)){
+  #   result_max[1:(Nobs-Nin-forchor[j]+1),2*j] <- rk_parzen[(Nin+forchor[j]):Nobs]
+  #   # j = 2 result_max[1: 5057 - 4866 - 5 + 1, 2 * 2 = 4 ]  = rks[4866 + 5 : end of sample 5057]
+  #   # i.e. fill entire matrix up to last 4 rows
+  #   result_max[(Nobs-Nin-forchor[j]+2):(Nobs-Nin),2*j-1] <- 0
+  #   # j = 2 result_max[1: 5057 - 4866 - 5 + 1, 2 * 2 -1 = 3 ]
+  #   # for last 4 rows: fill in 0, since cannot compute forecasts 
+  # }
+  
 }
-# no extra rolling window function .. 
+# feed into the results into extra function
 
 hp = function(gdp){
   # ---------------------------------------------------------------------- 
