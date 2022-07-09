@@ -5,8 +5,8 @@ install = function(a){
     
     install.packages("usethis")
     install.packages("devtools")
-    library(devtools)
-    install_github("cykbennie/fbi") # R Package to read QD and MD data
+    library(devtools) # devools needed to install directly from github
+    install_github("cykbennie/fbi") # R Package to read QD and MD data -> install from github
     install.packages("randomForest")
     # install.packages("xts")
     install.packages("mFilter")

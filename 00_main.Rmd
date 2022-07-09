@@ -38,12 +38,15 @@ inspect(df)
 ```
 
 Dimensions of df: 255 rows and 246 variables (excluding the date column)
+55 variables contain NA's 
 
 Clean Data frame
 ```{r}
 source("02_data_cleaning.R") # load data-cleaning file
 data = clean(df) # list with all relevant component extracted 
 ```
+
+
 helper:
 ```{r}
 # see which variables of the dataframe are in the fred description

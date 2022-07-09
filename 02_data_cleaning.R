@@ -4,10 +4,6 @@
 inspect = function(df){
   varlist_df = colnames(df) # column names of the dataframe
   
-  # Varlist Fred
-  # varlist_fred = fredqd_description # description of the quartely Fred data set
-  # length(varlist$fred) - 248
-  
   print("Dataframe structure", str(df)) # dataframe structure
   print(head(df)) # head of dataframe
   
@@ -23,20 +19,17 @@ clean = function(df){
   
   gdp_raw = df[-(1:2),2] # neglect first 2 rows of gdp
   
-  # df_clean = as.data.frame(matrix(0, nrow = dim(df)[1]-3, ncol = dim(df[2]))) # create empty dataframe
-  
-  # don't have the colnames in df_clean !!!
-  
   # get the dates
   dates = as.Date(df[-(1:2),1], format = "%m/%d/%Y") # character vector with dates: convert to date class 
+  df[-(1:2),1] = dates # insert dates as 1st column
   
   # handle NA's
-  # How to deal with NA entries??
-  # e.g. df[,"TLBSNNBBDIx"] - last entry missing 
-  # -> don't want to loose rows: Replace Using Mean, Median, or Mode ??
-  # if Na in column => fill NA's entry with mean/mode ?? -> use median to respect outliers
-  
-  
+  # -> don't want to loose rows: - if Na in column => fill NA's entry with mean/median ?? -> use median to respect outliers
+  for (i in 2:dim(df)[2]) {
+    df[,i] = ifelse(is.na(df[,i]), median(df[,i], na.rm = TRUE), df[,i])
+    # for each column beginning with the 2nd column
+    # for each NA entry => replace with median, otherwise don't replace the entry 
+  }
   
   # transform each variable according to the entry of first row the variable
   # 7) discrete returns
@@ -45,7 +38,6 @@ clean = function(df){
       df[-(1:2),v] = ( df[-(1:3),v] / df[-(1:2)- 1,v]) -1 # strt with 4th entry and 
     }
   }
-  
   
   # 6) squared returns
   for (v in 2:dim(df)[2]) { 
@@ -82,16 +74,19 @@ clean = function(df){
     }
   }
   
+  df = df[-(1:2),] # delete first 2 rows after computations
+  
   # training data / data for estimation via rolling window
   # "1959-03-01" - "2017-12-01"
   # => forecasting 5 years 
   
-  df[-(1:2),1] = dates
-  # insert dates as 2nd column
+  # windows function 
+  
+  
   
   print(str(df))
   print(head(df))
   
-  l = list(dates = dates, df_clean = df, gdp_raw = gdp_raw ) # put everything into list I want to return
+  l = list(dates = dates, df_clean = df, gdp_raw = gdp_raw) # put everything into list I want to return
   return(l)
 }
