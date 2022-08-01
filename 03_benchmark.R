@@ -1,89 +1,125 @@
-# Inspecting GDP and estimating ar & RW model 
+# Estimating AR & RW models as benchmarks
 
-ar = function(gdp){
+# simple forecast
+ar = function(gdp, ar_ord, ma_ord){
+  par(mfrow = c(1,1))
+  gdp_ts = ts(gdp, start = c(1959,1), frequency = 4) # create ts object
   
-  # xts package
-  # gdp = ts(data$gdp_raw, start = data$dates[1], frequency = 4) # ts does not support date object 
-  # if you want the character form of date in a time series object, you should consider using xts 
-  # use xts package for a nicer plot
-  
-  gdp_ts = ts(gdp, start = c(1959,1), frequency = 4) 
-  # The first number in the start parameter is the number of the period depending on the frequency, 
-  # while the second number is the first incident in that period (as not all series begin at January or at Sunday).
-  
-  ts.plot(gdp_ts, xlab="Time", ylab="GDP", type="l") # plot ts object
-  
-  #--------------------------------------------------------------------------
-  # Out of sample forecast of growth rate / returns (log difference)
+  # acf and pacf of nonstationary ts
+  print(tsapp::acfpacf(gdp_ts, lag = 50))
   
   # 1) 1st order difference (extracting the trend)
   gdp_d = diff(gdp_ts)
   ts.plot(gdp_d, xlab="quarter", ylab="GDP_difference", type="l") 
   
-  # stationary test: dickey-fuller test 
+  #centering ts
+  gdp_ct = gdp_d - mean(gdp_d)
   
   # acf and pacf
-  tsapp::acfpacf(gdp_d,50,HV="V")
+  print(tsapp::acfpacf(gdp_ct, lag = 50, HV="V"))
+ 
+  # stationary test: dickey-fuller test
+  print(tseries::adf.test(gdp_ct))
   
-  # centering data s.t. mean is 0 
-  gdp_ct = gdp_d - mean(gdp_d)
-  # gdp_ct = diff(gdp_ts) # not centering
+  # Fitting
+  #fitting ARMA[1,1] model
+  arma_fit = arima(gdp_ct, order = c(ar_ord,0,ma_ord), include.mean = FALSE) 
+  #significance tests
+  coef = arma_fit$coef
+  t = round(arma_fit$coef / diag(arma_fit$var.coef)^0.5, 4) # compute t-statistic
+  p = round(2*(1-pnorm(abs(t))), 4) # compute corresponding p-value & round both to 4th value
+  print(cbind(coef, t, p))
   
-  # 2) removing cyclical component? -> via periodogram ??
+  # information criteria 
+  
+  
+  
+  # Residual analysis: are residuals white noise?
+  print(LjungBoxPierceTest(arma_fit$resid, n.par = 2))
+  #QQ plot
+  qqnorm(arma_fit$resid)
+  abline(0,sd(arma_fit$resid))
+  
   
   # fitting a random walk model
-  rw = arima(gdp_ct, order = c(0,0,0), include.mean = FALSE)
+  # rw = arima(gdp_d, order = c(0,0,0), include.mean = FALSE)
   
-  # fitting ARMA[1,1] model
-  arma_fit = arima(gdp_ct, order = c(1,0,1)) 
+  # 
+  # 
+  # # significance tests
+  # # model comparison via Information criteria 
+  # 
+  # # fit model to the data via plot
+  # 
+  # # Forecasting
+  # h_max = 20 #forecast horizon: 5 years (i.e. 2o quarters)
+  # 
+  # 
+  # # Predictions
+  # rw_pred = predict(rw, h_max)
+  # arma_pred = predict(arma_fit, h_max)
+  # 
+  # # inverting the difference filter for detrending and making ts non-stationary
+  # gdp_forecasts_rw =  diffinv(rw_pred$pred + mean(gdp_d), xi = gdp[length(gdp)]) 
+  # gdp_forecasts_arma =  diffinv(arma_pred$pred + mean(gdp_d), xi = gdp[length(gdp)]) 
+  # 
+  # ts.plot(gdp,ylim = c(4500, 22000), xlim = c(1959,2027), xlab="quarter", ylab="GDP RW forecast", type="l")
+  # lines(gdp_forecasts_rw, col = "blue")
+  # 
+  # ts.plot(gdp,ylim = c(4500, 22000), xlim = c(1959,2027), xlab="quarter", ylab="GDP ARMA forecast", type="l")
+  # lines(gdp_forecasts_arma, col = "red")
+  # # include 95% CI -> x-values?
+  # lines(gdp_forecasts_arma + 1.96*sd(gdp_forecasts_arma),lwd=2, col = "orange")
+  # lines(gdp_forecasts_arma - 1.96*sd(gdp_forecasts_arma),lwd=2, col = "orange")
+  # legend("bottomright", legend = c("Prediticion arma model", "+ 95% Confidence intervall", "-95% Confidence intervall"), 
+  #        col = c("red", "orange", "orange"), lty = 1, cex = 0.5)
+  # 
+  # 
+  # 
+  # 
   
-  # (from 01_forecasting..)
-  # significance test 
-  # Residual analysis
-  # resiual check: white-noise ?
-  # information criteria -> can be left out: or only compare RW and choosen ARMA model based on ACF and PACF
-  # QQ plot
+  #####################################################
+  # use specific gdp component extraction method
+  # # 2) using seasonal trend decomposition to extract components
+  # out_stl = stl(gdp_ts, s.window = 7)
+  # plot(out_stl)
+  # e = out_stl$time.series[,3] # extracting the residuals
+  # 
+  # # acf and pacf
+  # print(tsapp::acfpacf(e, lag = 50, HV="V"))
+  # 
+  # # stationary test: dickey-fuller test 
+  # print(tseries::adf.test(e))
+  # 
+  # # Fitting
+  # #fitting ARMA[1,1] model
+  # arma_fit = arima(e, order = c(1,0,1)) 
+  # #significance tests
+  # coef = arma_fit$coef
+  # t = round(arma_fit$coef / diag(arma_fit$var.coef)^0.5, 4) # compute t-statistic
+  # p = round(2*(1-pnorm(abs(t))), 4) # compute corresponding p-value & round both to 4th value
+  # print(cbind(coef, t, p))
+  # 
+  # #fitting a random walk model
+  # rw = arima(e, order = c(0,0,0), include.mean = FALSE)
+  
+  # # 2) using periodogram to test for a hidden periodic component
+  # periodo = tsapp::periodogram(e, length(e)/2)
+  # plot(periodo[,1], periodo[,2], type = "l", ylab = "periodogram", xlab = "frequency"
+  #      ) # plot first column (frequency) against periodogram ordinates
+  # # test for remaining hidden component
+  # print(tsapp::periodotest(e))
   
   
-  # significance tests
-  # model comparison via Information criteria 
-  
-  # fit model to the data via plot
-  
-  # Forecasting
-  h_max = 20 #forecast horizon: 5 years (i.e. 2o quarters)
-  
-  
-  # Predictions
-  rw_pred = predict(rw, h_max)
-  arma_pred = predict(arma_fit, h_max)
-  
-  # inverting the difference filter for detrending and making ts non-stationary
-  gdp_forecasts_rw =  diffinv(rw_pred$pred + mean(gdp_d), xi = gdp[length(gdp)]) 
-  gdp_forecasts_arma =  diffinv(arma_pred$pred + mean(gdp_d), xi = gdp[length(gdp)]) 
-  
-  ts.plot(gdp,ylim = c(4500, 22000), xlim = c(1959,2027), xlab="quarter", ylab="GDP RW forecast", type="l")
-  lines(gdp_forecasts_rw, col = "blue")
-  
-  ts.plot(gdp,ylim = c(4500, 22000), xlim = c(1959,2027), xlab="quarter", ylab="GDP ARMA forecast", type="l")
-  lines(gdp_forecasts_arma, col = "red")
-  # include 95% CI -> x-values?
-  lines(gdp_forecasts_arma + 1.96*sd(gdp_forecasts_arma),lwd=2, col = "orange")
-  lines(gdp_forecasts_arma - 1.96*sd(gdp_forecasts_arma),lwd=2, col = "orange")
-  legend("bottomright", legend = c("Prediticion arma model", "+ 95% Confidence intervall", "-95% Confidence intervall"), 
-         col = c("red", "orange", "orange"), lty = 1, cex = 0.5)
-
-  
-  
-  
-  
-  return(list(rw_fit = rw, arma_fit = arma_fit))
+  # 
+  # return(list(rw_fit = rw, arma_fit = arma_fit))
 }
 
 # add in inspection with periodogram etc. to make gdp stationary .. (if time and needed in the end)
 # if ar coefficient large => might want to use ARFIMA ???
 # + additional: model variance via a GARCH (ATSA book)
 
+# Rolling window approach
 ar_rolling = function(gdp){
   # ---------------------------------------------------------------------- 
   # in sample forecast: fit everything with in-sample data (training data) & then forecast  test data (out of sample data)

@@ -1,6 +1,11 @@
 # feed in the results:
 
 
+# helper:
+# see which variables of the dataframe are in the fred description
+varlist_df %in% varlist_fred$fred # returns a boolean TRUE or FALSE value depending on whether the element is found or not
+which(varlist_df %in% varlist_fred$fred == FALSE) # gives the indices, that are false
+varlist_df[c(which(varlist_df %in% varlist_fred$fred == FALSE))]
 
 
 
