@@ -1,0 +1,45 @@
+---
+title: "R Notebook"
+output: 
+---
+
+Functions with comments for each R file:
+
+02
+```{r}
+inspect = function(df){
+  varlist_df = colnames(df) # column names of the dataframe
+  
+  # Varlist Fred
+  # varlist_fred = fredqd_description # description of the quartely Fred data set
+  # length(varlist$fred) - 248
+  
+  print("Dataframe structure", str(df)) # dataframe structure
+  print(head(df)) # head of dataframe
+  
+  print("These columns contain NA's", str(df[, colSums(is.na(df)) > 0])) # which columns contain NA's
+  
+  print("Variable Names")
+  return(varlist_df)
+}
+```
+
+
+
+
+
+
+
+05
+```{r}
+calc_mode = function(vector){
+  val = unique(vector) # list all the values in vector
+  values_counted = tabulate(match(vector, val))
+  # match counts how often each vector entry (va value) occurs in the nuderlying vector
+  # tabulate counts how often an integer occurs 
+  
+  # slice out the entry that occurs most often 
+  values_counted[which.max(values_counted)]
+}
+```
+

@@ -1,11 +1,11 @@
 ---
-title: "R Notebook"
+  title: "R Notebook"
 output:
----
-
-### put everything in R file ?? 
-
-Remove everything
+  ---
+  
+  ### put everything in R file ?? 
+  
+  Remove everything
 ```{r}
 rm(list=ls()) # clear out all variables in current session 
 setwd("~")
@@ -61,7 +61,7 @@ Last value available: "2022-03-01"
 
 
 AR & RW's with different windows as benchmark:
-```{r}
+  ```{r}
 source("03_benchmark.R") # load data file
 
 benchmarks_fit = ar(gdp_raw)
@@ -84,8 +84,9 @@ Rolling window -> also for RW..
 
 Forecast evaluation
 -> evaluate forecasts using:
-MAE, MSE
+  MAE, MSE
 and possibly some tests: Diebold-Marino, Superior predictive ability test, model confidence sets
 -> into extra file: help functions??
-
-
+  
+  
+  
