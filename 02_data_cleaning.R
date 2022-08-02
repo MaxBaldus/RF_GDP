@@ -76,7 +76,8 @@ clean = function(df){
   dates = as.Date(df[,1], format = "%m/%d/%Y") # character vector with dates: convert to date class 
   df[,1] = dates # insert dates as 1st column
   
-  df_trans = df
+  # only use values up to first quarter of 2022 (i.e. assuming no values from 2022 onwards)
+  df_trans = df[-(dim(df)[1]),]
   
   print("Transformend dataframe: ")
   print(str(df_trans))
@@ -88,7 +89,7 @@ clean = function(df){
 }
 
 # create in-sample dataframe
-in_out_sample = function(df, gdp){
+in_out_sample = function(df, gdp, h_max){
   
   # training data (in-sample) and test data (out-of-sample) for estimation via rolling window
   # in-sample contains observations from "1959-03-01" up to (not including) "2000-01-01"
@@ -96,7 +97,7 @@ in_out_sample = function(df, gdp){
   # i.e. 4 quarter per year => 4 * 22 = 88 quarters to forecast recursively
   
   N = length(df[,1]) # length of dataframe
-  Nin = N - 88 # length of in sample dataframe
+  Nin = N - h_max # length of in sample dataframe
   
   df_in = df[1:Nin,] 
   # df_out = df[Nin:N,] 

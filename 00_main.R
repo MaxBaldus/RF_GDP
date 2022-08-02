@@ -38,7 +38,10 @@ gdp_plot(data$gdp_raw, title = "GDP", ylab = "GDP")
 gdp_plot(data$df_trans[,2], title = "GDP growth rate", ylab = "log returns")
 
 # in sample data
-data_in = in_out_sample(df = data$df_trans, gdp = data$gdp_raw)
+# Forecasting 88 quarters
+h_max = 88 # forecast horizon: 4 quarters of 22 years (i.e. 88 quarters)
+
+data_in = in_out_sample(df = data$df_trans, gdp = data$gdp_raw, h_max)
 gdp_plot(data_in$gdp_raw_in,  title = "GDP in sample", ylab = "GDP")
 
 ##############################################################################################
@@ -46,7 +49,7 @@ gdp_plot(data_in$gdp_raw_in,  title = "GDP in sample", ylab = "GDP")
 source("03_benchmark.R") 
 
 # using entire data series
-ar(data$gdp_raw, 1,1)
+ar(data$gdp_raw, 1,1, h_max)
 # Dickey Fuller test for the 1st different: p = 0.01 < 0.05 => can reject H0 (ts stationary)
 # Using AR(1,1) model based on acf and pacf
 # coefficients of the AR model do not seem to be significant
@@ -54,21 +57,21 @@ ar(data$gdp_raw, 1,1)
 # 2 large outliers due to covid pandemic:
 
 # using only in-sample data
-ar_21 = ar(data_in$gdp_raw_in,2,1)
+ar_21 = ar(data_in$gdp_raw_in,2,1, h_max)
 # acf yields ma of order 2, pacf indicate long memory?
-# using ar(2,1) -> to singifincant coefficient, but with ar(1,1) parameters significant
+# using ar(2,1) -> two singifincant coefficient, but with ar(1,1) parameters significant
 # residuals seems to be white noise: confirmend by Ljung Box pierce test and normal qq-plot
 
 # fitting a random walk model
-rw = ar(data_in$gdp_raw_in, 0,0)
+rw = ar(data_in$gdp_raw_in, 0,0, h_max)
 
 # forecasting gdp growth
-ar_22_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 2, ma_ord = 2)
+ar_22_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 2, ma_ord = 2, h_max)
 # pacf suggests ar order of 2, acf suggests ma order of 2
 # but ma2 coefficient not significant 
 # errors seem to be white noise
 
-rw_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 0, ma_ord = 0)
+rw_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 0, ma_ord = 0, h_max)
 
 # plotting predictions
 source("04_plots.R")
@@ -90,9 +93,16 @@ gdp_forecast_plot(data$gdp_raw, rw$predicitons_inverted, "oos_forecasts_rw", yla
 ##############################################################################################
 # estimating benchmark models recursively 
 source("03_benchmark.R") 
+source("05_functions.R")
+# procedure:
+# add name to each row: i.e. 1:current row - 1 = in sample observations used to forecast 
+# insert true gdp values in every 2nd column 
+# compute mse & mae: using 10_out_of_sample.r -> into help function.R 
+# compute other statistics if time ..
 
+result_ar = ar_growth_rolling(data$df_trans[,2], ar_ord = 2, ma_ord = 2, h_max)
 
-
+feed_in(result = result_ar, gdp = data$df_trans[,2], h_max)
 
 
 
