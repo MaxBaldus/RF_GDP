@@ -1,9 +1,9 @@
 # Estimating AR & RW models as benchmarks
 
-# simple forecast
+# simple GDP forecast
 ar = function(gdp, ar_ord, ma_ord){
   par(mfrow = c(1,1))
-  gdp_ts = ts(gdp, start = c(1959,1), frequency = 4) # create ts object
+  gdp_ts = ts(gdp, start = c(1959,2), frequency = 4) # create ts object
   
   # acf and pacf of nonstationary ts
   print(tsapp::acfpacf(gdp_ts, lag = 50))
@@ -28,11 +28,20 @@ ar = function(gdp, ar_ord, ma_ord){
   coef = arma_fit$coef
   t = round(arma_fit$coef / diag(arma_fit$var.coef)^0.5, 4) # compute t-statistic
   p = round(2*(1-pnorm(abs(t))), 4) # compute corresponding p-value & round both to 4th value
-  print(cbind(coef, t, p))
+  summa = cbind(coef, t, p)
+  print(summa)
   
   # information criteria 
-  
-  
+  ord = ar_ord + ma_ord # number of parameters estimated
+  N = length(gdp) # length of ts
+  res = arma_fit$resid
+  IC = matrix(nrow = 1, ncol = 4)
+  colnames(IC) = c("rss", "aic", "aicc", "bic")
+  IC[1,"rss"] = sum( (res-mean(res))^2) # residual ssq
+  IC[1,"aic"] = log(IC[1,"rss"]/N) + 2*ord/N # akaike information criterion
+  IC[1,"aicc"] = log(IC[1,"rss"]/N) + 2*ord/(N-ord-2) # adjusted aic
+  IC[1,"bic"] = log(IC[1,"rss"]/N) + ord*log(N)/N # baysian information criterion
+  print(IC)
   
   # Residual analysis: are residuals white noise?
   print(LjungBoxPierceTest(arma_fit$resid, n.par = 2))
@@ -40,85 +49,119 @@ ar = function(gdp, ar_ord, ma_ord){
   qqnorm(arma_fit$resid)
   abline(0,sd(arma_fit$resid))
   
+  # Forecasting
+  h_max = 88 # forecast horizon: 22 years (i.e. 88 quarters)
   
-  # fitting a random walk model
-  # rw = arima(gdp_d, order = c(0,0,0), include.mean = FALSE)
+  # Predictions
+  arma_pred = predict(arma_fit, n.ahead = h_max)
+
+  # inverting the difference filter for detrending and making ts non-stationary
+  gdp_forecasts_arma =  diffinv(arma_pred$pred + mean(gdp_d), xi = gdp[length(gdp)]) 
   
-  # 
-  # 
-  # # significance tests
-  # # model comparison via Information criteria 
-  # 
-  # # fit model to the data via plot
-  # 
-  # # Forecasting
-  # h_max = 20 #forecast horizon: 5 years (i.e. 2o quarters)
-  # 
-  # 
-  # # Predictions
-  # rw_pred = predict(rw, h_max)
-  # arma_pred = predict(arma_fit, h_max)
-  # 
-  # # inverting the difference filter for detrending and making ts non-stationary
-  # gdp_forecasts_rw =  diffinv(rw_pred$pred + mean(gdp_d), xi = gdp[length(gdp)]) 
-  # gdp_forecasts_arma =  diffinv(arma_pred$pred + mean(gdp_d), xi = gdp[length(gdp)]) 
-  # 
-  # ts.plot(gdp,ylim = c(4500, 22000), xlim = c(1959,2027), xlab="quarter", ylab="GDP RW forecast", type="l")
-  # lines(gdp_forecasts_rw, col = "blue")
-  # 
-  # ts.plot(gdp,ylim = c(4500, 22000), xlim = c(1959,2027), xlab="quarter", ylab="GDP ARMA forecast", type="l")
-  # lines(gdp_forecasts_arma, col = "red")
-  # # include 95% CI -> x-values?
-  # lines(gdp_forecasts_arma + 1.96*sd(gdp_forecasts_arma),lwd=2, col = "orange")
-  # lines(gdp_forecasts_arma - 1.96*sd(gdp_forecasts_arma),lwd=2, col = "orange")
-  # legend("bottomright", legend = c("Prediticion arma model", "+ 95% Confidence intervall", "-95% Confidence intervall"), 
-  #        col = c("red", "orange", "orange"), lty = 1, cex = 0.5)
-  # 
-  # 
-  # 
-  # 
-  
-  #####################################################
-  # use specific gdp component extraction method
-  # # 2) using seasonal trend decomposition to extract components
-  # out_stl = stl(gdp_ts, s.window = 7)
-  # plot(out_stl)
-  # e = out_stl$time.series[,3] # extracting the residuals
-  # 
-  # # acf and pacf
-  # print(tsapp::acfpacf(e, lag = 50, HV="V"))
-  # 
-  # # stationary test: dickey-fuller test 
-  # print(tseries::adf.test(e))
-  # 
-  # # Fitting
-  # #fitting ARMA[1,1] model
-  # arma_fit = arima(e, order = c(1,0,1)) 
-  # #significance tests
-  # coef = arma_fit$coef
-  # t = round(arma_fit$coef / diag(arma_fit$var.coef)^0.5, 4) # compute t-statistic
-  # p = round(2*(1-pnorm(abs(t))), 4) # compute corresponding p-value & round both to 4th value
-  # print(cbind(coef, t, p))
-  # 
-  # #fitting a random walk model
-  # rw = arima(e, order = c(0,0,0), include.mean = FALSE)
-  
-  # # 2) using periodogram to test for a hidden periodic component
-  # periodo = tsapp::periodogram(e, length(e)/2)
-  # plot(periodo[,1], periodo[,2], type = "l", ylab = "periodogram", xlab = "frequency"
-  #      ) # plot first column (frequency) against periodogram ordinates
-  # # test for remaining hidden component
-  # print(tsapp::periodotest(e))
-  
-  
-  # 
-  # return(list(rw_fit = rw, arma_fit = arma_fit))
+
+  return(list(fit = arma_fit, coefficients = summa, information_critieria = IC, 
+              predicitons = arma_pred, predicitons_inverted = gdp_forecasts_arma))
 }
+
+# simple GDP growth forecast
+ar_growth = function(gdp, ar_ord, ma_ord){
+  par(mfrow = c(1,1))
+  gdp_ts = ts(gdp, start = c(1959,2), frequency = 4) # create ts object
+  
+  # # acf and pacf of nonstationary ts
+  # print(tsapp::acfpacf(gdp_ts, lag = 50))
+  
+  # # 1) 1st order difference (extracting the trend)
+  # gdp_d = diff(gdp_ts)
+  # ts.plot(gdp_d, xlab="quarter", ylab="GDP_difference", type="l") 
+  
+  # #centering ts
+  # gdp_ct = gdp_d - mean(gdp_d)
+  gdp_ct = gdp
+  
+  # acf and pacf
+  print(tsapp::acfpacf(gdp_ct, lag = 50, HV="V"))
+  
+  # stationary test: dickey-fuller test
+  print(tseries::adf.test(gdp_ct))
+  
+  # Fitting
+  #fitting ARMA model
+  arma_fit = arima(gdp_ct, order = c(ar_ord,0,ma_ord), include.mean = FALSE) 
+  
+  #significance tests
+  coef = arma_fit$coef
+  t = round(arma_fit$coef / diag(arma_fit$var.coef)^0.5, 4) # compute t-statistic
+  p = round(2*(1-pnorm(abs(t))), 4) # compute corresponding p-value & round both to 4th value
+  summa = cbind(coef, t, p)
+  print(summa)
+  
+  # information criteria 
+  ord = ar_ord + ma_ord # number of parameters estimated
+  N = length(gdp) # length of ts
+  res = arma_fit$resid
+  IC = matrix(nrow = 1, ncol = 4)
+  colnames(IC) = c("rss", "aic", "aicc", "bic")
+  IC[1,"rss"] = sum( (res-mean(res))^2) # residual ssq
+  IC[1,"aic"] = log(IC[1,"rss"]/N) + 2*ord/N # akaike information criterion
+  IC[1,"aicc"] = log(IC[1,"rss"]/N) + 2*ord/(N-ord-2) # adjusted aic
+  IC[1,"bic"] = log(IC[1,"rss"]/N) + ord*log(N)/N # baysian information criterion
+  print(IC)
+  
+  # Residual analysis: are residuals white noise?
+  print(LjungBoxPierceTest(arma_fit$resid, n.par = 2))
+  #QQ plot
+  qqnorm(arma_fit$resid)
+  abline(0,sd(arma_fit$resid))
+  
+  # Forecasting
+  h_max = 88 # forecast horizon: 22 years (i.e. 88 quarters)
+  
+  # Predictions
+  arma_pred = predict(arma_fit, n.ahead = h_max)
+  
+  
+  return(list(fit = arma_fit, coefficients = summa, information_critieria = IC, 
+              predicitons = arma_pred))
+}
+
+##################################################################################
+# use specific gdp component extraction method
+# # 2) using seasonal trend decomposition to extract components
+# out_stl = stl(gdp_ts, s.window = 7)
+# plot(out_stl)
+# e = out_stl$time.series[,3] # extracting the residuals
+# 
+# # acf and pacf
+# print(tsapp::acfpacf(e, lag = 50, HV="V"))
+# 
+# # stationary test: dickey-fuller test 
+# print(tseries::adf.test(e))
+# 
+# # Fitting
+# #fitting ARMA[1,1] model
+# arma_fit = arima(e, order = c(1,0,1)) 
+# #significance tests
+# coef = arma_fit$coef
+# t = round(arma_fit$coef / diag(arma_fit$var.coef)^0.5, 4) # compute t-statistic
+# p = round(2*(1-pnorm(abs(t))), 4) # compute corresponding p-value & round both to 4th value
+# print(cbind(coef, t, p))
+# 
+# #fitting a random walk model
+# rw = arima(e, order = c(0,0,0), include.mean = FALSE)
+
+# # 2) using periodogram to test for a hidden periodic component
+# periodo = tsapp::periodogram(e, length(e)/2)
+# plot(periodo[,1], periodo[,2], type = "l", ylab = "periodogram", xlab = "frequency"
+#      ) # plot first column (frequency) against periodogram ordinates
+# # test for remaining hidden component
+# print(tsapp::periodotest(e))
 
 # add in inspection with periodogram etc. to make gdp stationary .. (if time and needed in the end)
 # if ar coefficient large => might want to use ARFIMA ???
 # + additional: model variance via a GARCH (ATSA book)
 
+#################################################################################################
 # Rolling window approach
 ar_rolling = function(gdp){
   # ---------------------------------------------------------------------- 

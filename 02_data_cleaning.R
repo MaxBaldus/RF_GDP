@@ -19,11 +19,8 @@ inspect = function(df){
 
 clean = function(df){
   
+  # get gdp time series explicitely
   gdp_raw = df[-(1:2),2] # neglect first 2 rows of gdp
-  
-  # get the dates
-  dates = as.Date(df[-(1:2),1], format = "%m/%d/%Y") # character vector with dates: convert to date class 
-  df[-(1:2),1] = dates # insert dates as 1st column
   
   # handle NA's
   # replace NA entries with the median of the ts of the variable (use median to respect outliers)
@@ -73,16 +70,20 @@ clean = function(df){
     }
   }
   
-  df = df[-(1:3),] # delete first 2 rows after computations
+  df = df[-(1:3),] # delete first 3 rows after computations
   
-  
-  print("Transformend dataframe: ")
-  print(str(df))
+  # date class
+  dates = as.Date(df[,1], format = "%m/%d/%Y") # character vector with dates: convert to date class 
+  df[,1] = dates # insert dates as 1st column
   
   df_trans = df
+  
+  print("Transformend dataframe: ")
+  print(str(df_trans))
+  
   View(df_trans)
   
-  l = list(dates = dates, df_transformend = df, gdp_raw = gdp_raw) # put everything into list I want to return
+  l = list(dates = dates, df_trans = df_trans, gdp_raw = gdp_raw) # put everything into list I want to return
   return(l)
 }
 
@@ -90,20 +91,20 @@ clean = function(df){
 in_out_sample = function(df, gdp){
   
   # training data (in-sample) and test data (out-of-sample) for estimation via rolling window
-  # in-sample contains observations from "1959-03-01" to "2017-12-01"
-  # => forecasting 5 years (i.e. 4 quarter per year => 20 quartes)
+  # in-sample contains observations from "1959-03-01" up to (not including) "2000-01-01"
+  # => forecasting h = 0,...,4 quarters for each year up to 2022-01-01 (last quarter 2021) 
+  # i.e. 4 quarter per year => 4 * 22 = 88 quarters to forecast recursively
   
   N = length(df[,1]) # length of dataframe
-  Nin = N - 20 # length of in sample dataframe
+  Nin = N - 88 # length of in sample dataframe
   
-  df_in = df[1:Nin,] # slice df
+  df_in = df[1:Nin,] 
+  # df_out = df[Nin:N,] 
   View(df_in)
   
-  gdp_raw_in = gdp[1:Nin]
+  gdp_raw_in = gdp[1:Nin] # slice raw gdp 
   
   return(list(insample_dataframe = df_in, gdp_raw_in = gdp_raw_in))
-  
-  # windows function 
 }
 
 
