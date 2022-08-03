@@ -1,4 +1,4 @@
-# quick and dirty plotting
+# quick and dirty gdp plotting
 gdp_plot = function(gdp, title, ylab){
   
   # xts package
@@ -42,9 +42,12 @@ gdp_forecast_plot = function(gdp, gdp_forecast, title, ylab, col){
 gdp_growth_forecast_plot = function(gdp, gdp_forecast, se, title, ylab, col){
   
   # ts objects
-  gdp_ts = ts(gdp, start = c(1959,1), frequency = 4)
-  gdp_forecast_ts = ts(gdp_forecast, start = c(2000,1), frequency = 4)
-  gdp_forecast_se_ts = ts(se, start = c(2000,1), frequency = 4)
+  gdp_ts = ts(gdp, start = c(1959,1) ,end = c(2022,1), frequency = 4)
+  gdp_forecast_ts = ts(gdp_forecast, start = c(2000,1),end = c(2022,1), frequency = 4)
+  gdp_forecast_se_ts = ts(se, start = c(2000,1),end = c(2022,1), frequency = 4)
+  # gdp_forecast_ts = gdp_forecast
+  # gdp_forecast_se_ts = se
+  # 
   
   # plot
   ts.plot(gdp_ts, main = title, xlab="Time", ylab=ylab, type="l") # plot ts object

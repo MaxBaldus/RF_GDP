@@ -1,6 +1,6 @@
 # Estimating AR & RW models as benchmarks and forecasting 
 
-# simple GDP forecast
+# simple GDP forecast using first order difference
 ar = function(gdp, ar_ord, ma_ord, h_max){
   par(mfrow = c(1,1))
   gdp_ts = ts(gdp, start = c(1959,2), frequency = 4) # create ts object
@@ -159,7 +159,7 @@ ar_growth = function(gdp, ar_ord, ma_ord, h_max){
 
 #################################################################################################
 # Rolling window approach
-ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max){
+ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max, forh){
   # gdp_ts = ts(gdp, start = c(1959,2), frequency = 4)
   
   # in sample forecast: fit everything with in-sample data (training data) & then forecast  test data (out of sample data)
@@ -173,25 +173,34 @@ ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max){
   # corona forecast will give huge forecasting error => stop forecasting before corona ?
   # but since not in in-sample data => can just stop there (no problem)
   
-  # each quarter: forecast 4 quarters ahead, using current observation to refit the model (get new parameter estimates),
-  # but using the same (optimal) model order from above
+  # each quarter: forecast 1,2,3,4 quarters ahead, using current observation to refit the model 
+  # (get new parameter estimates),
+  # but using the same (optimal) model order from above: ar_11
   # the h = 1,..., 4 forecasts are saved into a matrix, for each quarter, while each time a column is left empty
   # for the real results, which will be feed into later
    
-  forh = c(1,2,3,4) # forecast horizon -> include h = 0 ????????????????
   N = length(gdp) # length of time series
   Nin = N - h_max # length of in sample observations
+  
+  print(N)
+  print(Nin)
+  print(gdp[gdp[1:Nin]])
   
   # initializing 
   zeros = rep(0, (N-Nin)*2*length(forh)) # first row of result matrix 
   result = matrix(zeros, nrow = N-Nin, ncol = 2*length(forh))
+  # result matrix: 88 rows
+  
   
   # loop over each quarter from 2000 up to 2022
   for (i in Nin:(N-1)) {
     # estimate arma model again using new observation each time
     arma_fit = arima(gdp[1:i], order = c(ar_ord,0,ma_ord), include.mean = FALSE)
+    # e.g i = Nin = 163 => use all gdp values up to 2000-01-01 
+    # last value to estimate model: 2021 3rd quarter
     p = predict(arma_fit, n.ahead = max(forh)) # predict next 4 quarters
-    # feed prediction into result matrix, each h forecast into 1,3,5 column respectively (*2), starting with first row
+    # feed prediction into result matrix, each h forecast into 1,3,5 column respectively (*2 .. -1),
+    # starting with first row
     result[i-Nin+1,2*(1:length(forh))-1] = p$pred
   }
   
