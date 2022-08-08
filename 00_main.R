@@ -3,8 +3,8 @@ rm(list=ls()) # clear out all variables in current session
 
 # Set wrking directory
 
-# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
-wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
+wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+# wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 
 #wd = ""  # enter you wd
 
@@ -42,7 +42,8 @@ gdp_plot(data$df_trans[,2], title = "GDP growth rate", ylab = "log returns")
 h_max = 88 # forecast horizon: 4 quarters of 22 years (i.e. 88 quarters)
 
 data_in = in_out_sample(df = data$df_trans, gdp = data$gdp_raw, h_max)
-gdp_plot(data_in$gdp_raw_in,  title = "GDP in sample", ylab = "GDP")
+gdp_plot(data_in$gdp_raw_in,  title = "GDP in sample", ylab = "GDP") 
+gdp_plot(data_in$insample_dataframe[,2], title = "GDP growth in sample", ylab = "gdp growth")
 
 ##############################################################################################
 # estimating benchmark models and doing simple forecast (one iteration)
@@ -158,7 +159,7 @@ for (j in 1:4) {
   print(head(result_ar[,(2*j-1)]))
   print(sd(result_ar[,(2*j-1)]))
 }
-
+# all forecasts are pretty similar
 
 # Forecast evaluation
 # evaluate forecasts using: ME, MAE, MSE
@@ -167,21 +168,32 @@ source("05_functions.R")
 eval_forc(result_ar, forh)
 
 ############################################################################
-# estimate plain rf and forecast
+## estimate plain rf and forecast
 
 # create train (in_sample) and test (out_of_sample) dataframe
 X_in = data_in$insample_dataframe[,-(1:2)]
 y_in = data_in$insample_dataframe[,2]
 
 X_out = data$df_trans[( (dim(data$df_trans)[1]-h_max + 1):(dim(data$df_trans)[1]) ), -(1:2)] # last 88 rows
-y_out = data$df_trans[(dim(data$df_trans)[1]-h_max + 1:dim(data$df_trans)[1]),2]
+# y_out = data$df_trans[(dim(data$df_trans)[1]-h_max + 1:dim(data$df_trans)[1]),2]
 
 source("06_rf.R")
-rf_plain = rf_plain(X_in, y_in, oos_dataframe =X_out, 
+rf_plain = rf_plain(X_in, y_in, oos_dataframe = X_out, 
                     # test_data is out_of_sample data
-                    mtry = sqrt(dim(X_in)[2]), # preditors used is square root of predictors
+                    mtry = sqrt(dim(X_in)[2]-2), # preditors used is square root of predictors
                     ntrees = 8000)
 
 length(rf_plain$plain_forest_pred)
 rf_plain$plain_forest_pred
+# plot growth forecast of plain rf
+gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = rf_plain$plain_forest_pred, se = sd(rf_plain$plain_forest_pred), 
+                         "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green")
+
+## estimate rf with rolling window approach: using a-priori hyperparameter model specification
+source("06_rf.R")
+rf_plain_rolling = rf_plain_rolling(df = data$df_trans[,-c(1,2)], y = data$df_trans[,2],
+                                    mtry = sqrt(dim(X_in)[2]-2), # preditors used is square root of predictors
+                                    ntrees = 8000, 
+                                    h_max, forh)
+
 
