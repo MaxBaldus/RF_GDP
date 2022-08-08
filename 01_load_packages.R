@@ -5,7 +5,7 @@ install_and_load = function(a){
     install.packages("randomForest")
     install.packages("tseries")
     install.packages("tsapp")
-    install.packages("")
+    install.packages("forecast")
     #install.packages("mFilter")
     
     # for using github:
@@ -20,6 +20,8 @@ install_and_load = function(a){
   library(randomForest)
   library(tsapp)
   library(tseries)
+  library(forecast)
+  
   #library(mFilter)
   # github
   #library(devtools)

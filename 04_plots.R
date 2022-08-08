@@ -39,7 +39,7 @@ gdp_forecast_plot = function(gdp, gdp_forecast, title, ylab, col){
          col = c(col, "orange"), lty = 1, cex = 0.5)
 }
 
-gdp_growth_forecast_plot = function(gdp, gdp_forecast, se, title, ylab, col){
+gdp_growth_forecast_plot = function(gdp, gdp_forecast, se, title, ylab, col, CI){
   
   # ts objects
   gdp_ts = ts(gdp, start = c(1959,1) ,end = c(2022,1), frequency = 4)
@@ -52,20 +52,26 @@ gdp_growth_forecast_plot = function(gdp, gdp_forecast, se, title, ylab, col){
   # plot
   ts.plot(gdp_ts, main = title, xlab="Time", ylab=ylab, type="l") # plot ts object
   lines(gdp_forecast_ts, col = col)
-  lines(gdp_forecast_ts + 1.96*gdp_forecast_se_ts, col = "orange", lty = 3)
-  lines(gdp_forecast_ts - 1.96*gdp_forecast_se_ts,lwd=2, col = "orange", lty = 3)
-  # legend
-  legend("bottomleft", legend = c("Model prediction", "95% Confidence intervall"), 
-         col = c(col, "orange"), lty = 1, cex = 0.5)
+  if (CI == TRUE) {
+    lines(gdp_forecast_ts + 1.96*gdp_forecast_se_ts, col = "orange", lty = 3)
+    lines(gdp_forecast_ts - 1.96*gdp_forecast_se_ts,lwd=2, col = "orange", lty = 3) 
+    # legend
+    legend("bottomleft", legend = c("Model prediction", "95% Confidence intervall"), 
+           col = c(col, "orange"), lty = 1, cex = 0.5)
+  }
+  
   
   # zoom in
   ts.plot(window(gdp_ts, start =c(1995,1), end = c(2022,1)), main = c(title, "zoom") ,xlab="Time", ylab=ylab, type="l") 
   lines(gdp_forecast_ts, col = col)
-  lines(gdp_forecast_ts + 1.96*gdp_forecast_se_ts,lwd=2, col = "orange", lty = 3)
-  lines(gdp_forecast_ts - 1.96*gdp_forecast_se_ts,lwd=2, col = "orange", lty = 3)
-  # legend
-  legend("bottomleft", legend = c("Model prediction", "95% Confidence intervall"), 
-         col = c(col, "orange"), lty = 1, cex = 0.5)
+  if (CI == TRUE) {
+    lines(gdp_forecast_ts + 1.96*gdp_forecast_se_ts,lwd=2, col = "orange", lty = 3)
+    lines(gdp_forecast_ts - 1.96*gdp_forecast_se_ts,lwd=2, col = "orange", lty = 3)
+    # legend
+    legend("bottomleft", legend = c("Model prediction", "95% Confidence intervall"), 
+           col = c(col, "orange"), lty = 1, cex = 0.5)
+  }
+
 }
 
 

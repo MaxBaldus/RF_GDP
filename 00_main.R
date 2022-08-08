@@ -3,8 +3,8 @@ rm(list=ls()) # clear out all variables in current session
 
 # Set wrking directory
 
-wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
-# wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
+# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 
 #wd = ""  # enter you wd
 
@@ -87,7 +87,7 @@ ar_11 = ar(data_in$gdp_raw_in, ar_ord = 1, ma_ord = 1 , h_max)
 rw = ar(data_in$gdp_raw_in, 0,0, h_max)
 # residuals no white-noise: ar_models better
 
-## forecasting gdp growth
+###### estimating and forecasting gdp growth
 ar_22_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 2, ma_ord = 2, h_max)
 # pacf suggests ar order of 2, acf suggests ma order of 2
 # but ma2 coefficient not significant 
@@ -136,11 +136,11 @@ gdp_forecast_plot(data$gdp_raw, rw$predicitons_inverted, "oos_forecasts_rw", yla
 source("03_benchmark.R") 
 source("05_functions.R")
 # procedure:
-# construcing result table: each 2nd column contains h = 1,2,3,4 forecast, 
-# insert true gdp values in every 2nd column next to forecast column
-# compute forecast errors based on result table
+# constructing result table: the 1st, 3rd, 5th contains the h = 1,2,3,4 forecasts, 
+# then the true gdp values are inserted in every 2nd column next to forecast column
+# then computing forecast errors based on result table
 
-forh = c(1,2,3,4) # forecast horizon -> include h = 0 ????????????????
+forh = c(1,2,3,4) # forecast horizons
 
 # computing forecasts iteratively
 result_ar = ar_growth_rolling(data$df_trans[,2], ar_ord = 2, ma_ord = 2, h_max, forh)
@@ -151,36 +151,45 @@ View(result_ar)
 
 # plotting the different forecasts
 source("04_plots.R")
-for (j in 1:4) {
+
+
+for (j in 1:5) {
   gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = result_ar[,(2*j-1)], 
                            se = sd(result_ar[,(2*j-1)]), 
-                           paste0("oos_growth_forecasts_ar11_h=",j), 
-                           ylab = "gdp growth", col = "blue")
-  print(head(result_ar[,(2*j-1)]))
-  print(sd(result_ar[,(2*j-1)]))
+                           title = paste0("oos_growth_forecasts_ar11_h=",j-1), 
+                           ylab = "gdp growth", col = "blue", 
+                           CI = FALSE)
+  print(head(result_ar[,(2*j-1)])) # printing first forecast
+  print(sd(result_ar[,(2*j-1)])) # printing standard error 
 }
-# all forecasts are pretty similar
+# standard errors and forecasts are pretty similar
 
-# Forecast evaluation
+### Forecast evaluation
 # evaluate forecasts using: ME, MAE, MSE
 # and possibly some tests:Diebold - Marino, Superior predictive ability test, model confidence sets
 source("05_functions.R")
-eval_forc(result_ar, forh)
+eval_for_ar = eval_forc(result_ar[1:(dim(result_ar)[1]-1),], forh) # using all but last row (since no comparable data)
+print(eval_for_ar)
 
-############################################################################
+which.min(eval_for_ar$me) # h = 1 forecast has min me value
+which.min(eval_for_ar$mse) # h = 0 has min mse value
+which.min(eval_for_ar$mae) #  h = 0 has min mae value
+
+###########################################################################
 ## estimate plain rf and forecast
 
 # create train (in_sample) and test (out_of_sample) dataframe
 X_in = data_in$insample_dataframe[,-(1:2)]
 y_in = data_in$insample_dataframe[,2]
 
-X_out = data$df_trans[( (dim(data$df_trans)[1]-h_max + 1):(dim(data$df_trans)[1]) ), -(1:2)] # last 88 rows
+X_out = data$df_trans[( (dim(data$df_trans)[1]-h_max + 1):(dim(data$df_trans)[1]) ), -(1:2)] 
+# last 88 rows
 # y_out = data$df_trans[(dim(data$df_trans)[1]-h_max + 1:dim(data$df_trans)[1]),2]
 
 source("06_rf.R")
 rf_plain = rf_plain(X_in, y_in, oos_dataframe = X_out, 
                     # test_data is out_of_sample data
-                    mtry = sqrt(dim(X_in)[2]-2), # preditors used is square root of predictors
+                    mtry = sqrt(dim(X_in)[2]-2), # predictors used is square root of predictors
                     ntrees = 8000)
 
 length(rf_plain$plain_forest_pred)

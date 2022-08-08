@@ -182,31 +182,49 @@ ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max, forh){
   N = length(gdp) # length of time series
   Nin = N - h_max # length of in sample observations
   
-  print(N)
-  print(Nin)
-  print(gdp[gdp[1:Nin]])
+  print(N) # 251 observations
+  print(Nin) # 163 observations
   
   # initializing 
-  zeros = rep(0, (N-Nin)*2*length(forh)) # first row of result matrix 
-  result = matrix(zeros, nrow = N-Nin, ncol = 2*length(forh))
-  # result matrix: 88 rows
-  
+  # zeros = rep(0, (N-Nin)*2*length(forh)) # first row of result matrix 
+  result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh))
+  # result matrix: 88 rows + 1 row, since using last observation 251 for predictions
+  h0 = matrix(0,  nrow = N-Nin + 1, ncol = 2) # initializing matrix for storing nowcast values
   
   # loop over each quarter from 2000 up to 2022
-  for (i in Nin:(N-1)) {
+  for (i in Nin:(N)) {
     # estimate arma model again using new observation each time
+    # data$df_trans$GDPC1[163] =  0.01629431 <=> 1999-12-01
+    # all values up to 1999-12-01 are used in the first loop to estimate model
+    # e.g i = Nin = 163 => use all gdp values up to 2000-03-01 (1st quarter are used)
     arma_fit = arima(gdp[1:i], order = c(ar_ord,0,ma_ord), include.mean = FALSE)
-    # e.g i = Nin = 163 => use all gdp values up to 2000-01-01 
-    # last value to estimate model: 2021 3rd quarter
-    p = predict(arma_fit, n.ahead = max(forh)) # predict next 4 quarters
+    # last value to be used to estimate model: 2021-12-01
+    
+    # h = 1,2,3,4
+    # hence predicting 1st, 2nd, 3rd and 4th quarter 
+    p = predict(arma_fit, n.ahead = max(forh)) # predict h = 1,2,3,4
+    
     # feed prediction into result matrix, each h forecast into 1,3,5 column respectively (*2 .. -1),
     # starting with first row
     result[i-Nin+1,2*(1:length(forh))-1] = p$pred
+    
+    # h = 0: compute current fit (i.e. nowcast)
+    # compute fitted values by subtracting residual of current fit (model) from current gdp value
+    # when using i: first fitted value is 4th quarter 1999
+    # but want fitted values only from 1st quarter 2000 onwards
+    h0[i-Nin+1,1] = gdp[i] - arma_fit$residual[i] 
   }
   
-  result_ar = result
-  colnames(result_ar) =  c("gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp", 
-                           "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
+  # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000
+  h0[1:(dim(h0)[1]-1),1] = h0[2:(dim(h0)[1]),1]
+  h0[dim(h0)[1],1] = 0 
+  
+  # last row (is 0)
+  
+  result_ar = cbind(h0, result)
+  colnames(result_ar) =  c("gdp forecast h=0", "gdp",
+                           "gdp forecast h=1", "gdp", "gdp forecast h=2",
+                           "gdp", "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
   View(result_ar)
   return(result_ar)
   
