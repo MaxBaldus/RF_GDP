@@ -1,8 +1,7 @@
 # clean enviroment
 rm(list=ls()) # clear out all variables in current session 
 
-# Set wrking directory
-
+# Set working directory
 # wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 
@@ -22,10 +21,16 @@ df = read.csv("input/current.csv") # load dataframe
 source("02_data_cleaning.R") # load data-cleaning file
 inspect(df)
 
-#Dimensions of df: 255 rows (observcations) and 246 variables (excluding the date column)
+#Dimensions of df: 255 rows (observations) and 246 variables (excluding the date column)
 #55 variables contain NA entries 
 #Last value available: "2022-03-01"
 #first value available: "3/1/1959"
+
+
+
+# load ts from carstensen and exchange gdp column (ensure using same target as other participants)
+# df[length(ts)-dim(df)[1]:dim(df)[1]]
+
 
 # Clean Data frame
 source("02_data_cleaning.R") # load data-cleaning file
@@ -198,11 +203,17 @@ rf_plain$plain_forest_pred
 gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = rf_plain$plain_forest_pred, se = sd(rf_plain$plain_forest_pred), 
                          "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green")
 
-## estimate rf with rolling window approach: using a-priori hyperparameter model specification
+## estimate rf with rolling window approach: using a-priori hyper parameter model specification
+# and training new forest each iteration
 source("06_rf.R")
 rf_plain_rolling = rf_plain_rolling(df = data$df_trans[,-c(1,2)], y = data$df_trans[,2],
-                                    mtry = sqrt(dim(X_in)[2]-2), # preditors used is square root of predictors
+                                    mtry = sqrt(dim(X_in)[2]-2), # predictors used is square root of predictors
                                     ntrees = 8000, 
                                     h_max, forh)
 
 
+
+### 1) hyper parameter tuning
+#a) analyze opt. tree trainend on data up to 2000Q1 via importance plot bla bla
+### 2) again using rolling window and training new forest each prediction
+### 3) forecasting using same forest each iteration
