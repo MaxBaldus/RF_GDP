@@ -1,24 +1,23 @@
-# feed the true values into the results matrix
+# feed the true values into the results matrix (every 2nd column)
 feed_in = function(result, gdp, h_max, forh){
   
   N = length(gdp) # length of time series
   Nin = N - h_max # length of in sample observations
   
-  # gdp h=10: 
+  # gdp h=0: 
   result[1:((N-Nin)),2] = gdp[(Nin+1):N]
   
   # gdp h=1: 
   result[1:((N-Nin)),4] = gdp[(Nin+1):N]
-  # 2nd column: insert gdp values for h = 1
-  # since we assume that we do'nt have values in 2022 (for comparison) 
+  # 4th column: insert gdp values for h = 1
+  # since we assume that we dont have values in 2022 (for comparison) 
   # => last entry in gdp h = 1 column needs to be 0 (no value), because 
   # forecasting first quarter 2022 using last quarter in 2021 in last row
   
   # gdp h=2:
   result[1:((N-Nin)-1),6] = gdp[(Nin+2):N]
-  # because forecasting 2 quarters now, last row entry must be 0, since
-  # data of 1st quarter 2022 not available now
-  # first entry 
+  # because forecasting 2 quarters now, last 2 rows must be 0, since
+  # data of 1st quarter 2022 & 2nd quarter not available now ...
   
   # gdp h=3:
   result[1:((N-Nin)-2),8] = gdp[(Nin+3):N]

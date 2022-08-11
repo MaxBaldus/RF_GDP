@@ -162,7 +162,8 @@ ar_growth = function(gdp, ar_ord, ma_ord, h_max){
 ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max, forh){
   # gdp_ts = ts(gdp, start = c(1959,2), frequency = 4)
   
-  # in sample forecast: fit everything with in-sample data (training data) & then forecast  test data (out of sample data)
+  # in sample forecast: fit everything with in-sample data (training data) & then forecast 
+  # test data (out of sample data)
   # using rolling windows => estimate parameters iteratively with each new observation 
   # and forecast each season's value, up to last value N
   # forecasting 22 years * 4 values (quarters) per year = 88 values for the out-of-sample forecasts
@@ -193,7 +194,7 @@ ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max, forh){
   
   # loop over each quarter from 2000 up to 2022
   for (i in Nin:(N)) {
-    # estimate arma model again using new observation each time
+    # estimate arma model again using new observation each time (but same coefficients)
     # data$df_trans$GDPC1[163] =  0.01629431 <=> 1999-12-01
     # all values up to 1999-12-01 are used in the first loop to estimate model
     # e.g i = Nin = 163 => use all gdp values up to 2000-03-01 (1st quarter are used)
@@ -204,7 +205,7 @@ ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max, forh){
     # hence predicting 1st, 2nd, 3rd and 4th quarter 
     p = predict(arma_fit, n.ahead = max(forh)) # predict h = 1,2,3,4
     
-    # feed prediction into result matrix, each h forecast into 1,3,5 column respectively (*2 .. -1),
+    # feed prediction into result matrix, each h forecast into 3,5,7 column respectively (*2 .. -1),
     # starting with first row
     result[i-Nin+1,2*(1:length(forh))-1] = p$pred
     
@@ -217,9 +218,9 @@ ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max, forh){
   
   # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000
   h0[1:(dim(h0)[1]-1),1] = h0[2:(dim(h0)[1]),1]
-  h0[dim(h0)[1],1] = 0 
+  h0[dim(h0)[1],1] = 0  # last row (is 0)
   
-  # last row (is 0)
+  
   
   result_ar = cbind(h0, result)
   colnames(result_ar) =  c("gdp forecast h=0", "gdp",
