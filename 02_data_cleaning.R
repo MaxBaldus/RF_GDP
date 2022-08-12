@@ -79,6 +79,13 @@ clean = function(df){
   # only use values up to first quarter of 2022 (i.e. assuming no values from 2022 onwards)
   df_trans = df[-(dim(df)[1]),]
   
+  # insert raw gdp again (as third column)
+  df_trans = cbind(df_trans[,1:2], gdp_raw[2:(length(gdp_raw)-1)], df_trans[3:ncol(df_trans)])
+  
+  # rename GDP and GDP growth column 
+  names(df_trans)[2] = "GDP_GR" 
+  names(df_trans)[3] = colnames(df)[2]
+  
   print("Transformend dataframe: ")
   print(str(df_trans))
   

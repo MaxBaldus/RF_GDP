@@ -1,15 +1,15 @@
-# plain rf
-rf_plain = function(in_sample_dataframe, oos_dataframe, ntrees, mtry){
+# plain rf using OOB 
+rf_plain = function(X, y , oos_dataframe, ntrees, mtry){
   
   # train random forest on in_sample_dataframe
-  rand_forest = randomForest::randomForest(GDPC1 ~.,  
-                                           data = in_sample_dataframe,
-                                           # data = in_sample_dataframe[,-1],
+  rand_forest = randomForest::randomForest(x = X,
+                                           y = y,  
+                                           # data = in_sample_dataframe,
                                            mtry = mtry,
                                            importance = TRUE,
                                            ntrees = ntrees)
   # prediction
-  rand_forest_pred = predict(rand_forest, oos_dataframe) # without y ????????????´
+  rand_forest_pred = predict(rand_forest, oos_dataframe) 
   
   return(list(forest = rand_forest, plain_forest_pred = rand_forest_pred))
   
@@ -30,7 +30,7 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, h_max, forh) {
   result = matrix(zeros, nrow = N-Nin + 1, ncol = 2*length(forh))
   
   p = rep(0, length(forh)) # initialize vector to store predictions in
-  # first entry: h = 0 (same Q), then h = 1,..., 4
+  # first entry: h = 1, then h = 1,..., 4
   h0 = matrix(0,  nrow = N-Nin + 1, ncol = 2) # initializing matrix for storing nowcast values
   
   # loop over each quarter from 2000 up to 2022

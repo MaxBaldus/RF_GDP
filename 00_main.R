@@ -2,8 +2,8 @@
 rm(list=ls()) # clear out all variables in current session 
 
 # Set working directory
-# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
-wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
+wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+# wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 
 #wd = ""  # enter you wd
 
@@ -47,8 +47,10 @@ gdp_plot(data$df_trans[,2], title = "GDP growth rate", ylab = "log returns")
 
 h_max = 88 # forecast horizon: 4 quarters of 22 years (i.e. 88 quarters)
 
-# plotting in sample data
+# in sample dataframe
 data_in = in_out_sample(df = data$df_trans, gdp = data$gdp_raw, h_max)
+
+# plotting in sample data
 gdp_plot(data_in$gdp_raw_in,  title = "GDP in sample", ylab = "GDP") 
 gdp_plot(data_in$insample_dataframe[,2], title = "GDP growth in sample", ylab = "gdp growth")
 
@@ -127,9 +129,9 @@ rw_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 0, ma_ord = 0, h_
 source("04_plots.R")
 # plot growth predictions
 gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = ar_11_growth$predicitons$pred, se = ar_11_growth$predicitons$se, 
-                         "oos_growth_forecasts_ar11", ylab = "gdp growth", col = "blue")
+                         "oos_growth_forecasts_ar11", ylab = "gdp growth", col = "blue", CI = TRUE)
 gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = rw_growth$predicitons$pred, se = rw_growth$predicitons$se, 
-                         "oos_growth_forecasts_rw", ylab = "gdp growth", col = "red")
+                         "oos_growth_forecasts_rw", ylab = "gdp growth", col = "red", CI = TRUE)
 # plot GDP predictions
 gdp_forecast_plot(data$gdp_raw, ar_11$predicitons_inverted, "oos_forecasts_ar11", ylab = "gdp", col = "blue") 
 gdp_forecast_plot(data$gdp_raw, rw$predicitons_inverted, "oos_forecasts_rw", ylab = "gdp", col = "red")
@@ -201,17 +203,26 @@ X_out = data$df_trans[( (dim(data$df_trans)[1]-h_max + 1):(dim(data$df_trans)[1]
 # y_out = data$df_trans[(dim(data$df_trans)[1]-h_max + 1:dim(data$df_trans)[1]),2]
 
 source("06_rf.R")
-rf_plain = rf_plain(data_in$insample_dataframe[,-1], # excluding data column
-                    oos_dataframe = X_out, # test_data is out_of_sample data
+# fit plain rf using OOB (out-of-bag error) as test-error estimate 
+set.seed(123)
+rf_plain_growth = rf_plain(X = data_in$insample_dataframe[,-c(1,2)], # excluding data column and GDP
+                    y = data_in$insample_dataframe$GDPC1,
+                    oos_dataframe = X_out, # test_data is out_of_sample data (for the prediction)
                     mtry = sqrt(dim(data_in$insample_dataframe[,-1])[2]), 
                     # number of predictors used is square root of predictors
                     ntrees = 8000)
 
-length(rf_plain$plain_forest_pred)
-rf_plain$plain_forest_pred
+length(rf_plain_growth$plain_forest_pred)
+rf_plain_growth$plain_forest_pred
 # plot growth forecast of plain rf
-gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = rf_plain$plain_forest_pred, se = sd(rf_plain$plain_forest_pred), 
-                         "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green")
+gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = rf_plain_growth$plain_forest_pred, se = sd(rf_plain_growth$plain_forest_pred), 
+                         "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green", CI = TRUE)
+
+plot(rf_plain_growth$forest) # plotted error rate 
+# error rate differs, when same model is rerun => need to set seed inside for comparisons (later done with ranger package)
+
+# estimate plain rf using OOB for (plain GDP)
+
 
 ## estimate rf with rolling window approach: using a-priori hyper parameter model specification
 # and training new forest each iteration
@@ -258,10 +269,17 @@ print(eval_for_rf)
 ### forecasting GDP (not growth) with rolling window 
 # exchange df_trans column with GDP column from carstensen.. 
 # use 1st difference => making it non-stationary again 
+# or: just inverse growth and plot again? -> but: approximation -> small errors? 
+# are erros same?
+
 
 ### 1) hyper parameter tuning
-#a) analyze opt. tree trainend on data up to 2000Q1 via importance plot bla bla
-### 2) again using rolling window and training new forest each prediction (same hyperparameters)
+# using different packages
+# using cv ???
+
+#a) analyze opt. tree trained on data up to 2000Q1 via importance plot bla bla
+
+### 2) again using rolling window and training new forest each prediction (same optimal hyperparameters)
 
 
 ### 3) using new hyperparameter within each iteration??
