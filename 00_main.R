@@ -2,8 +2,8 @@
 rm(list=ls()) # clear out all variables in current session 
 
 # Set working directory
-wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
-# wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
+# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 
 #wd = ""  # enter you wd
 
@@ -97,7 +97,7 @@ rw = ar(data_in$gdp_raw_in, 0,0, h_max)
 # residuals no white-noise: ar_models better
 
 ###### estimating and forecasting gdp growth
-ar_22_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 2, ma_ord = 2, h_max)
+ar_22_growth = ar_growth(data_in$insample_dataframe$GDP_GR, ar_ord = 2, ma_ord = 2, h_max)
 # pacf suggests ar order of 2, acf suggests ma order of 2
 # but ma2 coefficient not significant 
 # errors seem to be white noise
@@ -105,14 +105,14 @@ ar_22_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 2, ma_ord = 2,
 # 0.0119434 -9.472247 -9.470371 -9.396326
 
 # fitting ar_21_model
-ar_21_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 2, ma_ord = 1, h_max)
+ar_21_growth = ar_growth(data_in$insample_dataframe$GDP_GR, ar_ord = 2, ma_ord = 1, h_max)
 # now all parameter very significant. 
 # erros on the edge on being white noise or non-white noise
 # information criteria a little bit higher (slightly)
 # rss       aic      aicc       bic
 # 0.01211922 -9.469903 -9.468738 -9.412963
 
-ar_11_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 1, ma_ord = 1, h_max)
+ar_11_growth = ar_growth(data_in$insample_dataframe$GDP_GR, ar_ord = 1, ma_ord = 1, h_max)
 # both parameters significant
 # slightly best information criteria (lowest)
 # rss       aic      aicc       bic
@@ -120,7 +120,7 @@ ar_11_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 1, ma_ord = 1,
 # erros slightly white-noise
 
 
-rw_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 0, ma_ord = 0, h_max)
+rw_growth = ar_growth(data_in$insample_dataframe$GDP_GR, ar_ord = 0, ma_ord = 0, h_max)
 # white-noise hypothesis can be rejected (errors not white-noise)
 
 ## using ar_11_growth in the following 
@@ -128,9 +128,9 @@ rw_growth = ar_growth(data_in$insample_dataframe[,2], ar_ord = 0, ma_ord = 0, h_
 # plotting predictions
 source("04_plots.R")
 # plot growth predictions
-gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = ar_11_growth$predicitons$pred, se = ar_11_growth$predicitons$se, 
+gdp_growth_forecast_plot(data$df_trans$GDP_GR, gdp_forecast = ar_11_growth$predicitons$pred, se = ar_11_growth$predicitons$se, 
                          "oos_growth_forecasts_ar11", ylab = "gdp growth", col = "blue", CI = TRUE)
-gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = rw_growth$predicitons$pred, se = rw_growth$predicitons$se, 
+gdp_growth_forecast_plot(data$df_trans$GDP_GR, gdp_forecast = rw_growth$predicitons$pred, se = rw_growth$predicitons$se, 
                          "oos_growth_forecasts_rw", ylab = "gdp growth", col = "red", CI = TRUE)
 # plot GDP predictions
 gdp_forecast_plot(data$gdp_raw, ar_11$predicitons_inverted, "oos_forecasts_ar11", ylab = "gdp", col = "blue") 
@@ -153,44 +153,73 @@ source("05_functions.R")
 forh = c(1,2,3,4) # forecast horizons (not including forecast h = 0)
 
 # computing gdp GROWTH forecasts iteratively
-result_ar = ar_growth_rolling(data$df_trans[,2], ar_ord = 2, ma_ord = 2, h_max, forh)
+result_ar_growth = ar_growth_rolling(data$df_trans$GDP_GR, ar_ord = 1, ma_ord = 1, 
+                                     h_max, forh, Fstdf = FALSE)
 
 # feed in true values
-result_ar = feed_in(result = result_ar, gdp = data$df_trans[,2], h_max, forh)
-View(result_ar)
+result_ar_growth = feed_in(result = result_ar_growth, gdp = data$df_trans$GDP_GR, h_max, forh)
+View(result_ar_growth)
 
 # plotting the different forecasts
 source("04_plots.R")
-
-
 for (j in 1:5) {
-  gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = result_ar[,(2*j-1)], 
-                           se = sd(result_ar[,(2*j-1)]), 
-                           title = paste0("oos_growth_forecasts_ar11_h=",j-1), 
-                           ylab = "gdp growth", col = "blue", 
+  gdp_growth_forecast_plot(data$df_trans$GDP_GR, gdp_forecast = result_ar_growth[,(2*j-1)], 
+                           se = sd(result_ar_growth[,(2*j-1)]), 
+                           title = paste0("oos_growth_forecasts_ar11, h=",j-1), 
+                           ylab = "GDP growth", col = "blue", 
                            CI = FALSE)
-  print(head(result_ar[,(2*j-1)])) # printing first forecast
-  print(sd(result_ar[,(2*j-1)])) # printing standard error 
+  print(head(result_ar_growth[,(2*j-1)])) # printing first forecast
+  print(sd(result_ar_growth[,(2*j-1)])) # printing standard error 
 }
 # standard errors and forecasts are pretty similar
-# corona outlier is weaker predicted, the larger the forecast horizon
+# corona outburst is weaker predicted, the larger the forecast horizon
 
 # Forecast evaluation
 # evaluate forecasts using: ME, MAE, MSE
 # and possibly some tests:Diebold - Marino, Superior predictive ability test, model confidence sets
 source("05_functions.R")
+eval_for_ar_growth = eval_forc(result_ar_growth[1:(dim(result_ar)[1]-1),], forh) 
+# using all but last row (since no comparable data)
+print(eval_for_ar_growth)
+
+which.min(eval_for_ar_growth$me) # h = 4 forecast has min me value ??
+which.min(eval_for_ar_growth$mse) # h = 0 has min mse value
+which.min(eval_for_ar_growth$mae) #  h = 0 has min mae value
+
+### forecasting GDP iteratively (not growth)
+# using ar11 model from above: 
+source("03_benchmark.R") 
+result_ar = ar_rolling(data$df_trans$GDPC1, ar_ord = 1, ma_ord = 1, 
+                              h_max, forh, Fstdf = TRUE, xi = data$df_trans$GDPC1[1] )
+# invert forecasts back into original scale (since used 1st difference of GDP)
+# feed in true values
+result_ar = feed_in(result = result_ar, gdp = data$df_trans$GDPC1[-1], h_max, forh)
+View(result_ar)
+# plotting the different forecasts
+source("04_plots.R")
+
+gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = result_ar[,1], 
+                  se = sd(result_ar[,1]), 
+                  title = paste0("oos_GDP_forecasts_ar11, h="), 
+                  ylab = "GDP", col = "blue", 
+                  CI = TRUE)
+
+for (j in 1:5) {
+  gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = result_ar[,(2*j-1)], 
+                           se = sd(result_ar[,(2*j-1)]), 
+                           title = paste0("oos_GDP_forecasts_ar11, h=",j-1), 
+                           ylab = "GDP", col = "blue", 
+                           CI = TRUE)
+  print(head(result_ar[,(2*j-1)])) # printing first forecast
+  print(sd(result_ar[,(2*j-1)])) # printing standard error 
+}
 eval_for_ar = eval_forc(result_ar[1:(dim(result_ar)[1]-1),], forh) 
 # using all but last row (since no comparable data)
 print(eval_for_ar)
 
-which.min(eval_for_ar$me) # h = 1 forecast has min me value
+which.min(eval_for_ar$me) # h = 4 forecast has min me value ??
 which.min(eval_for_ar$mse) # h = 0 has min mse value
 which.min(eval_for_ar$mae) #  h = 0 has min mae value
-
-### forecasting GDP (not growth)
-# using bla model from above: making ts stationary by 1st order differencing .. 
-
-
 ###########################################################################
 ## estimate plain rf and forecast
 

@@ -159,9 +159,14 @@ ar_growth = function(gdp, ar_ord, ma_ord, h_max){
 
 #################################################################################################
 # Rolling window approach
-ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max, forh){
-  # gdp_ts = ts(gdp, start = c(1959,2), frequency = 4)
-  
+ar_rolling = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
+  # make gdp stationary via 1st differences if Fstdf = TRUE
+  if (Fstdf == TRUE) {
+    gdp_d = diff(gdp) # 1st differencing ts
+    gdp_ct = gdp_d - mean(gdp_d) # centering ts
+    gdp = gdp_ct 
+  }
+  print(length(gdp))
   # in sample forecast: fit everything with in-sample data (training data) & then forecast 
   # test data (out of sample data)
   # using rolling windows => estimate parameters iteratively with each new observation 
@@ -204,7 +209,7 @@ ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max, forh){
     # h = 1,2,3,4
     # hence predicting 1st, 2nd, 3rd and 4th quarter 
     p = predict(arma_fit, n.ahead = max(forh)) # predict h = 1,2,3,4
-    
+      
     # feed prediction into result matrix, each h forecast into 3,5,7 column respectively (*2 .. -1),
     # starting with first row
     result[i-Nin+1,2*(1:length(forh))-1] = p$pred
@@ -214,6 +219,8 @@ ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max, forh){
     # when using i: first fitted value is 4th quarter 1999
     # but want fitted values only from 1st quarter 2000 onwards
     h0[i-Nin+1,1] = gdp[i] - arma_fit$residual[i] 
+    
+    #}
   }
   
   # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000
@@ -223,6 +230,15 @@ ar_growth_rolling = function(gdp, ar_ord, ma_ord, h_max, forh){
   
   
   result_ar = cbind(h0, result)
+  print(ncol(result_ar))
+  
+  if (Fstdf == TRUE) {
+    for (i in (seq(1, ncol(result_ar), 2))) { # for each column: compute inverse of diff. operation
+      result_ar[,i] =  diffinv(result_ar[,i] + mean(gdp_d), xi = xi)[-1]
+      # xi is the starting value of the differenced series (gdp) + adding mean again (non_centered)
+    }
+  }
+
   colnames(result_ar) =  c("gdp forecast h=0", "gdp",
                            "gdp forecast h=1", "gdp", "gdp forecast h=2",
                            "gdp", "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")

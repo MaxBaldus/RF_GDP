@@ -70,6 +70,8 @@ clean = function(df){
     }
   }
   
+  # GDP_1stdiff = 
+  
   df = df[-(1:3),] # delete first 3 rows after computations
   
   # date class
