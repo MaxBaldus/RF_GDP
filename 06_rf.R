@@ -1,15 +1,26 @@
 # plain rf using OOB 
-rf_plain = function(X, y , oos_dataframe, ntrees, mtry){
-  
+rf_plain = function(X, gdp , oos_dataframe, ntrees, mtry, Fstdf, xi){
+  # using first difference:
+  if (Fstdf == TRUE) {
+    gdp_d = diff(gdp) # 1st differencing ts
+    gdp_ct = gdp_d - mean(gdp_d) # centering ts
+    gdp = gdp_ct 
+    # loosing one observation: hence also need to delete first observation in regressor data
+    X = X[-1,]
+  }
   # train random forest on in_sample_dataframe
   rand_forest = randomForest::randomForest(x = X,
-                                           y = y,  
-                                           # data = in_sample_dataframe,
+                                           y = gdp,  
+                                           # data = in_sample_dataframe: needed when ~.formular is used
                                            mtry = mtry,
                                            importance = TRUE,
                                            ntrees = ntrees)
   # prediction
   rand_forest_pred = predict(rand_forest, oos_dataframe) 
+  
+  if (Fstdf == TRUE) {
+    rand_forest_pred = diffinv(rand_forest_pred + mean(gdp_d), xi = xi)[-1]
+  }
   
   return(list(forest = rand_forest, plain_forest_pred = rand_forest_pred))
   
@@ -42,7 +53,7 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, h_max, forh) {
     # y_train = y[1:i]
     
     # train rf using values up to current window (starting with )
-    rand_forest = randomForest::randomForest(GDPC1 ~.,
+    rand_forest = randomForest::randomForest(GDP_GR ~.,
                                data = X_train,
                                # data = in_sample_dataframe[,-1],
                                mtry = mtry,
@@ -69,7 +80,7 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, h_max, forh) {
     
     # View(result)
   }
-  # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000
+  # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000 (of the nowcast)
   h0[1:(dim(h0)[1]-1),1] = h0[2:(dim(h0)[1]),1]
   h0[dim(h0)[1],1] = 0  # last row (is 0)
   
