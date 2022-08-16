@@ -70,8 +70,6 @@ clean = function(df){
     }
   }
   
-  # GDP_1stdiff = 
-  
   df = df[-(1:3),] # delete first 3 rows after computations
   
   # date class
@@ -117,6 +115,34 @@ in_out_sample = function(df, gdp, h_max){
   return(list(insample_dataframe = df_in, gdp_raw_in = gdp_raw_in))
 }
 
-
+clean_2 = function(df){
+  # get gdp time series explicitely
+  gdp_raw = df[-(1:2),2] # neglect first 2 rows of gdp
+  
+  # handle NA's
+  # replace NA entries with the median of the ts of the variable (use median to respect outliers)
+  for (i in 2:dim(df)[2]) {
+    df[,i] = ifelse(is.na(df[,i]), median(df[,i], na.rm = TRUE), df[,i])
+    # for each column beginning with the 2nd column
+    # for each NA entry => replace with median, otherwise don't replace the entry 
+    
+    df = df[-(1:2),] 
+    
+    # date class
+    dates = as.Date(df[,1], format = "%m/%d/%Y") # character vector with dates: convert to date class 
+    df[,1] = dates # insert dates as 1st column
+    
+    # only use values up to first quarter of 2022 (i.e. assuming no values from 2022 onwards)
+    df_trans = df[-(dim(df)[1]),]
+    
+    print("Transformend dataframe: ")
+    print(str(df_trans))
+    
+    View(df_trans)
+    
+    l = list(dates = dates, df_trans = df_trans, gdp_raw = gdp_raw) # put everything into list I want to return
+    return(l)
+  }
+}
 
 

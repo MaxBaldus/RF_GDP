@@ -2,8 +2,8 @@
 rm(list=ls()) # clear out all variables in current session 
 
 # Set working directory
-# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
-wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
+wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+# wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 
 #wd = ""  # enter you wd
 
@@ -133,8 +133,10 @@ gdp_growth_forecast_plot(data$df_trans$GDP_GR, gdp_forecast = ar_11_growth$predi
 gdp_growth_forecast_plot(data$df_trans$GDP_GR, gdp_forecast = rw_growth$predicitons$pred, se = rw_growth$predicitons$se, 
                          "oos_growth_forecasts_rw", ylab = "gdp growth", col = "red", CI = TRUE)
 # plot GDP predictions
-gdp_forecast_plot(data$gdp_raw, ar_11$predicitons_inverted, "oos_forecasts_ar11", ylab = "gdp", col = "blue") 
-gdp_forecast_plot(data$gdp_raw, rw$predicitons_inverted, "oos_forecasts_rw", ylab = "gdp", col = "red")
+gdp_forecast_plot(data$gdp_raw, ar_11$predicitons_inverted, title = "oos_forecasts_ar11", ylab = "gdp", col = "blue", CI = TRUE,
+                  se = ar_11$predicitons$se) 
+gdp_forecast_plot(data$gdp_raw, rw$predicitons_inverted, "oos_forecasts_rw", ylab = "gdp", col = "red",
+                  CI = TRUE, se = rw$predicitons$se)
 
 
 ## using ts decomposition
@@ -153,7 +155,7 @@ source("05_functions.R")
 forh = c(1,2,3,4) # forecast horizons (not including forecast h = 0)
 
 # computing gdp GROWTH forecasts iteratively
-result_ar_growth = ar_growth_rolling(data$df_trans$GDP_GR, ar_ord = 1, ma_ord = 1, 
+result_ar_growth = ar_rolling(data$df_trans$GDP_GR, ar_ord = 1, ma_ord = 1, 
                                      h_max, forh, Fstdf = FALSE)
 
 # feed in true values
@@ -178,7 +180,7 @@ for (j in 1:5) {
 # evaluate forecasts using: ME, MAE, MSE
 # and possibly some tests:Diebold - Marino, Superior predictive ability test, model confidence sets
 source("05_functions.R")
-eval_for_ar_growth = eval_forc(result_ar_growth[1:(dim(result_ar)[1]-1),], forh) 
+eval_for_ar_growth = eval_forc(result_ar_growth[1:(dim(result_ar_growth)[1]-1),], forh) 
 # using all but last row (since no comparable data)
 print(eval_for_ar_growth)
 
@@ -190,20 +192,16 @@ which.min(eval_for_ar_growth$mae) #  h = 0 has min mae value
 # using ar11 model from above: 
 source("03_benchmark.R") 
 result_ar = ar_rolling(data$df_trans$GDPC1, ar_ord = 1, ma_ord = 1, 
-                              h_max, forh, Fstdf = TRUE, xi = data$df_trans$GDPC1[1] )
+                       h_max, forh, Fstdf = TRUE, 
+                       xi = data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"] )
 # invert forecasts back into original scale (since used 1st difference of GDP)
+# xi is first value that is predicted, i.e. 2000Q1, whic
 # feed in true values
 result_ar = feed_in(result = result_ar, gdp = data$df_trans$GDPC1[-1], h_max, forh)
 View(result_ar)
+
 # plotting the different forecasts
 source("04_plots.R")
-
-gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = result_ar[,1], 
-                  se = sd(result_ar[,1]), 
-                  title = paste0("oos_GDP_forecasts_ar11, h="), 
-                  ylab = "GDP", col = "blue", 
-                  CI = TRUE)
-
 for (j in 1:5) {
   gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = result_ar[,(2*j-1)], 
                            se = sd(result_ar[,(2*j-1)]), 
@@ -223,34 +221,50 @@ which.min(eval_for_ar$mae) #  h = 0 has min mae value
 ###########################################################################
 ## estimate plain rf and forecast
 
-# create train (in_sample) and test (out_of_sample) dataframe
-X_in = data_in$insample_dataframe[,-(1:2)]
-y_in = data_in$insample_dataframe[,2]
-
-X_out = data$df_trans[( (dim(data$df_trans)[1]-h_max + 1):(dim(data$df_trans)[1]) ), -(1:2)] 
+# create train (in_sample) and test (out_of_sample) dataframe for GDP growth
+X_in_growth = data_in$insample_dataframe[,-(1:3)] # regressors
+y_in_growth = data_in$insample_dataframe$GDP_GR # growth rate
+X_out_growth = data$df_trans[( (dim(data$df_trans)[1]-h_max + 1):(dim(data$df_trans)[1]) ), -(1:3)] 
 # last 88 rows, excluding data and gdp data 
 # y_out = data$df_trans[(dim(data$df_trans)[1]-h_max + 1:dim(data$df_trans)[1]),2]
 
 source("06_rf.R")
 # fit plain rf using OOB (out-of-bag error) as test-error estimate 
-set.seed(123)
-rf_plain_growth = rf_plain(X = data_in$insample_dataframe[,-c(1,2)], # excluding data column and GDP
-                    y = data_in$insample_dataframe$GDPC1,
-                    oos_dataframe = X_out, # test_data is out_of_sample data (for the prediction)
+set.seed(123) # set seed to ensure bagging same variables in training process
+rf_plain_growth = rf_plain(X = X_in_growth, 
+                    y = y_in_growth,
+                    oos_dataframe = X_out, # unseen dataset for prediction
                     mtry = sqrt(dim(data_in$insample_dataframe[,-1])[2]), 
                     # number of predictors used is square root of predictors
                     ntrees = 8000)
-
-length(rf_plain_growth$plain_forest_pred)
-rf_plain_growth$plain_forest_pred
 # plot growth forecast of plain rf
-gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = rf_plain_growth$plain_forest_pred, se = sd(rf_plain_growth$plain_forest_pred), 
+gdp_growth_forecast_plot(data$df_trans$GDP_GR, gdp_forecast = rf_plain_growth$plain_forest_pred, 
+                         se = sd(rf_plain_growth$plain_forest_pred), 
                          "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green", CI = TRUE)
-
 plot(rf_plain_growth$forest) # plotted error rate 
-# error rate differs, when same model is rerun => need to set seed inside for comparisons (later done with ranger package)
 
-# estimate plain rf using OOB for (plain GDP)
+## estimate plain rf using OOB for (plain GDP)
+source("02_data_cleaning.R")
+df_plain = clean_2(df)
+
+df_in = in_out_sample(df_plain$df_trans, gdp = df_plain$df_trans$GDPC1, h_max = h_max)
+X_in = df_in$insample_dataframe[,-(1:2)]
+y_in = df_in$gdp_raw_in
+X_out = df_plain$df_trans[( (dim(df_plain$df_trans)[1]-h_max + 1):(dim(df_plain$df_trans)[1]) ), -(1:2)] 
+
+
+rf_plain_GDP = rf_plain(X = X_in, 
+                           y = y_in,
+                           oos_dataframe = X_out, # 
+                           mtry = ncol(data_in$insample_dataframe)/3, 
+                           # number of predictors used is square root of predictors
+                           ntrees = 8000)
+# plot growth forecast of plain rf
+gdp_growth_forecast_plot(data$df_trans$GDPC1, gdp_forecast = rf_plain_GDP$plain_forest_pred, 
+                         se = sd(rf_plain_GDP$plain_forest_pred), 
+                         "oos_growth_forecasts_rf_plain", ylab = "GDP", col = "green", CI = TRUE)
+plot(rf_plain_growth$forest) # plotted error rate 
+
 
 
 ## estimate rf with rolling window approach: using a-priori hyper parameter model specification
