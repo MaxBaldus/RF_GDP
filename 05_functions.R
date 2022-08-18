@@ -69,7 +69,16 @@ eval_forc = function(result, forh){
   return(list(me = me, mse=mse, mae =mae)) 
 }
 
-  
+# converting gdp growth rate back to GDP levels
+invert_growth = function(df, y_0){
+  df_inv = matrix(0, nrow = nrow(df), ncol = ncol(df)) # initialize empty matrix
+  for (j in 1:5) {
+    df_inv[,(2*j-1)] = exp(cumsum(df[,(2*j-1)])) * y_0 # compute levels again 
+  }
+  # insert gdp values again (2nd, 4th, 6th column etc.)
+  df_inv[,seq(2,ncol(df),by = 2)] = df[,seq(2,ncol(df),by = 2)]  
+  return(df_inv)
+}
 
 
 ##############################################################################################
