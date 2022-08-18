@@ -7,6 +7,7 @@ rf_plain = function(X, gdp , oos_dataframe, ntrees, mtry, Fstdf, xi){
     gdp = gdp_ct 
     # loosing one observation: hence also need to delete first observation in regressor data
     X = X[-1,]
+    print(gdp)
   }
   # train random forest on in_sample_dataframe
   rand_forest = randomForest::randomForest(x = X,
@@ -26,6 +27,22 @@ rf_plain = function(X, gdp , oos_dataframe, ntrees, mtry, Fstdf, xi){
   
 }
 
+# plain random forest using validation set
+rf_plain_valid = function(X_train, X_test, y_test, oos_dataframe, ntrees, mtry){
+  # train random forest on in_sample_dataframe
+  rand_forest = randomForest::randomForest(formula = GDP_GR ~.,
+                                           data = X_train, # in_sample_dataframe: needed when ~.formular is used
+                                           xtest = X_test,
+                                           ytest = y_test,
+                                           mtry = mtry,
+                                           importance = TRUE,
+                                           ntrees = ntrees)
+  plot(rand_forest)
+  # prediction
+  # rand_forest_pred = predict(rand_forest2, oos_dataframe) 
+  rand_forest_pred = 0
+  return(list(forest = rand_forest, plain_forest_pred = rand_forest_pred))
+}
 
 # forecasting rf using rolling window with a-priori specification
 # i.e. refitting rf, but always with the same hyper parameters

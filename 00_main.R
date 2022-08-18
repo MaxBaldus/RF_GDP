@@ -2,11 +2,11 @@
 rm(list=ls()) # clear out all variables in current session 
 
 # Set working directory
-# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 
 # office:
 # wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
-wd = "C:/Users/u32/Desktop/Max/RF_GDP"
+# wd = "C:/Users/u32/Desktop/Max/RF_GDP"
 
 #wd = ""  # enter you wd
 
@@ -39,6 +39,8 @@ inspect(df)
 source("02_data_cleaning.R") # load data-cleaning file
 data = clean(df) # list with all relevant component extracted 
 
+# use gDP from carstensen (small differences in the decimal places)
+
 ##############################################################################################
 # plotting gdp
 source("04_plots.R")
@@ -57,8 +59,11 @@ data_in = in_out_sample(df = data$df_trans, gdp = data$gdp_raw, h_max)
 gdp_plot(data_in$gdp_raw_in,  title = "GDP in sample", ylab = "GDP") 
 gdp_plot(data_in$insample_dataframe[,2], title = "GDP growth in sample", ylab = "gdp growth")
 
+# using ggplot
+
 ##############################################################################################
-# estimating benchmark models and doing simple forecast (one iteration)
+# estimating benchmark models and doing a simple forecast (h = 1, ..., 88) 
+# analyzing parameter combinations and finding out best coefficients to use in rolling window approach
 source("03_benchmark.R") 
 
 # using entire data series
@@ -70,8 +75,9 @@ ar(data$gdp_raw, 1,1, h_max)
 # but qq-plot shows somewhat systematic deviation
 # 2 large outliers due to covid pandemic:
 
-### using only in-sample data (raw_gdp)
-# 1st order differencing gdp
+################## using only in-sample data and non-transformend GDP
+# in the following: using 1st order differencing to make GDP stationary
+
 ar_21 = ar(data_in$gdp_raw_in,2,1, h_max)
 # acf yields ma of order 2, pacf indicate long memory?
 # using ar(2,1) -> two significant coefficient, but with ar(1,1) parameters significant
@@ -99,7 +105,7 @@ ar_11 = ar(data_in$gdp_raw_in, ar_ord = 1, ma_ord = 1 , h_max)
 rw = ar(data_in$gdp_raw_in, 0,0, h_max)
 # residuals no white-noise: ar_models better
 
-###### estimating and forecasting gdp growth
+###################### estimating and forecasting GDP growth
 ar_22_growth = ar_growth(data_in$insample_dataframe$GDP_GR, ar_ord = 2, ma_ord = 2, h_max)
 # pacf suggests ar order of 2, acf suggests ma order of 2
 # but ma2 coefficient not significant 
@@ -191,14 +197,15 @@ which.min(eval_for_ar_growth$me) # h = 4 forecast has min me value ??
 which.min(eval_for_ar_growth$mse) # h = 0 has min mse value
 which.min(eval_for_ar_growth$mae) #  h = 0 has min mae value
 
-### forecasting GDP iteratively (not growth)
+################################ forecasting GDP iteratively (not growth)
 # using ar11 model from above: 
 source("03_benchmark.R") 
 result_ar = ar_rolling(data$df_trans$GDPC1, ar_ord = 1, ma_ord = 1, 
                        h_max, forh, Fstdf = TRUE, 
                        xi = data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"] )
 # invert forecasts back into original scale (since used 1st difference of GDP)
-# xi is first value that is predicted, i.e. 2000Q1, whic
+# xi is first value that is predicted, i.e. 2000Q1, which serves as y_0 when re-differencing GDP
+
 # feed in true values
 result_ar = feed_in(result = result_ar, gdp = data$df_trans$GDPC1[-1], h_max, forh)
 View(result_ar)
@@ -225,21 +232,21 @@ which.min(eval_for_ar$mae) #  h = 0 has min mae value
 ## estimate plain rf and forecast
 
 # create train (in_sample) and test (out_of_sample) dataframe for GDP growth
-X_in = data_in$insample_dataframe[,-(1:3)] # regressors
+X_in = data_in$insample_dataframe[,-(2:3)] # regressors
 y_in = data_in$insample_dataframe$GDP_GR # growth rate
-X_out = data$df_trans[( (dim(data$df_trans)[1]-h_max + 1):(dim(data$df_trans)[1]) ), -(1:3)] 
+X_out = data$df_trans[( (dim(data$df_trans)[1]-h_max + 1):(dim(data$df_trans)[1]) ), -(2:3)] 
 # last 88 rows, excluding data and gdp data 
 # y_out = data$df_trans[(dim(data$df_trans)[1]-h_max + 1:dim(data$df_trans)[1]),2]
 
 source("06_rf.R")
 # fit plain rf using OOB (out-of-bag error) as test-error estimate 
 set.seed(123) # set seed to ensure bagging same variables in training process
-rf_plain_growth = rf_plain(X = X_in, 
+rf_plain_growth = rf_plain(X = X_in[,-1], 
                     gdp = y_in,
-                    oos_dataframe = X_out, # unseen dataset for prediction
-                    mtry = sqrt(dim(data_in$insample_dataframe[,-1])[2]), 
-                    # number of predictors used is square root of predictors
-                    ntrees = 8000,
+                    oos_dataframe = X_out[,-1], # unseen dataset for prediction
+                    mtry = round(sqrt(dim(data_in$insample_dataframe[,-(1:3)])[2])), 
+                    # number of predictors used is square root of overall predictors available
+                    ntrees = 500,
                     Fstdf = FALSE, 
                     xi = data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"])
 # plot growth forecast of plain rf
@@ -247,49 +254,117 @@ gdp_growth_forecast_plot(data$df_trans$GDP_GR, gdp_forecast = rf_plain_growth$pl
                          se = sd(rf_plain_growth$plain_forest_pred), 
                          "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green", 
                          CI = TRUE)
-plot(rf_plain_growth$forest) # plotted error rate 
+plot(rf_plain_growth$forest) # OOB sample error 
+which.min(rf_plain_growth$forest$mse) # number of trees that minimize OOB sample error: 395
+# importance plot
+randomForest::varImpPlot(rf_plain_growth$forest)
+# %increase in MSE and increase in node purity 
 
-### converting GDP back (not growth) with rolling window 
-test_2 = exp(cumsum(rf_plain_growth$plain_forest_pred)) * data$df_trans$GDPC1[data$df_trans$sasdate == "1999-12-01"]
-gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = test_2, 
+
+### converting GDP back, i.e. inverting the diff(log(x)) transformation (get levels from growth rate)
+test_1 = Reduce(function(x,y) {x * exp(y)}, rf_plain_growth$plain_forest_pred, 
+                init=data$df_trans$GDPC1[data$df_trans$sasdate == "1999-12-01"], accumulate=T)
+test_2 = exp(cumsum(rf_plain_growth$plain_forest_pred)) * data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"]
+gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = test_1, 
                   se = sd(test_2),
                   "oos_growth_forecasts_rf_plain", ylab = "GDP", 
                   col = "green", CI = FALSE)
+# error accumulates => the larger the horizon, the more and more GDP is overestimated 
+
+
+### now using validation set approach: fit model in first part of the series => then evaluate on later part,
+# all inside training data: X_in goes from 1959-06-01 to 1999-12-01, which are approx. 40 years => use first 32 years
+# as training data and data from 1991 onwards as test-data set
+X_in_train = data_in$insample_dataframe[1:which(X_in$sasdate == "1991-03-01"),-3] # data up to 1991Q1 including GDP_growth
+View(X_in_train)
+X_in_test = data_in$insample_dataframe[which(X_in$sasdate == "1991-06-01"):nrow(X_in),-c(2,3)] # data onwards excluding GDP_growth
+View(X_in_test)
+y_in_train = data_in$insample_dataframe$GDP_GR[1:which(X_in$sasdate == "1991-03-01")] 
+y_in_test = data_in$insample_dataframe$GDP_GR[which(X_in$sasdate == "1991-03-01"):nrow(X_in)] 
+
+source("06_rf.R")
+# using validation set
+rf_plain_vs = rf_plain_valid(X_in_train[,-1], X_in_test[,-1], y_in_test, 
+                             oos_dataframe = X_out[,-1], ntrees = 395, 
+                             mtry = round(sqrt(dim(data_in$insample_dataframe[,-(1:3)])[2])) )
+# class(rf_plain_vs$forest)
+# [1] "randomForest.formula" "randomForest"
+predict(rf_plain_vs$forest, X_out[,-1]) # rf cannot predict when using a validation set ??
+class(rf_plain_vs$forest)
+
+# compare validation and test set using ggplot:
+# # plot.data = data.frame(Date,GDP1, ols_fit = ols$fitted.values, ar1_fit = c(NA,ar1$fitted.values) ) 
+# # library("ggplot2")
+# ggplot(data=data.frame(1:500,rf_plain_vs$forest$mse, rf_plain_vs$forest$test$mse), 
+#        aes(x=ntree, y=Error)) +
+#   geom_line(linetype="solid") +
+#   geom_line(aes(x=Date, y=ols_fit), linetype="solid", color="blue") +
+#   geom_line(aes(x=Date, y=ar1_fit), linetype="solid", color="red") +
+#   theme(axis.title = element_blank()) +
+#   ggtitle("US GDP (Billions of Dollars)")
+
+
+rf_plain_vs$forest$predicted # predicted values of inpute data based on out-of-bag samples
+rf_plain_vs$forest$mse # mean square error: sum of squared residuals divided by n -> for the OOB samples respectively 
+# compute other measures with rf$prediction 
+rf_plain_vs$forest$test$mse # test mean squared error, for each tree number  
+
+# use cross-validation: cannot completely shuffle df => need to use step-wise approach
+# slice data frame: using 4 quarters each time 
+# then: estimate rf and compute predictions on using next 4 qarters (year)
+# store $mse (so that have mse for all forests with different number of trees)
+# take average mse for each ntree in the end
 
 
 
-# ## estimate GDP using plain rf via OOB for 
-# # when using transformend dataframe: 
-# # 1) not first differencing GDP: completely underestimates
-# # 2) first differencing: underestimates further and further 
-# # 3) using plain df and not centered GDP: totally underestimates 
-# # 4) using plain df and centered GDP: totally overestimates
-# source("02_data_cleaning.R")
-# df_plain = clean_2(df)
-# df_in = in_out_sample(df_plain$df_trans, gdp = df_plain$df_trans$GDPC1, h_max = h_max)
-# X_in = df_in$insample_dataframe[,-(1:2)]
-# y_in = df_in$gdp_raw_in
-# X_out = df_plain$df_trans[( (dim(df_plain$df_trans)[1]-h_max + 1):(dim(df_plain$df_trans)[1]) ), -(1:2)]
-# 
-# source("06_rf.R")
-# rf_plain_GDP = rf_plain(X = X_in, 
-#                         gdp = y_in,
-#                         oos_dataframe = X_out, # 
-#                         mtry = ncol(data_in$insample_dataframe)/3, 
-#                         # number of predictors used is square root of predictors
-#                         ntrees = 8000,
-#                         Fstdf = FALSE, 
-#                         xi = data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"])
-# # plot growth forecast of plain rf
-# gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = rf_plain_GDP$plain_forest_pred, 
-#                          se = sd(rf_plain_GDP$plain_forest_pred), 
-#                          "oos_growth_forecasts_rf_plain", ylab = "GDP", 
-#                          col = "green", CI = FALSE)
-# plot(rf_plain_growth$forest) # plotted error rate 
+# use opt number of trees later ? or hyper parameter tune again
+# using method that gave fewest mse.. ?
+
+#############################################################
+# hyperparameter tuning
+# with for loop: using 1:all regressors 
+# using ranger now to fit rf (since faster to fit a forest than using rf packages)
+# using 3 functions inside loop to compute oob, validation_error, cv_error for each hyperparameter combination
+# ntree not tuning???
+
+#a) analyze opt. tree trained on data up to 2000Q1 via importance plot bla bla
+
+### 2) again using rolling window and training new forest each prediction (same optimal hyperparameters)
+
+#############################################################
+# estimate GDP using plain rf without making all time series in the dataset stationary!! 
+# 1) not first differencing GDP: completely underestimates
+# 2) using transformed dataframe and GDP: underestimates even further
+# 3) first differencing and plan_X : overestimates and captures almost nothing
+# 4) using plain df and not centered GDP: totally underestimates, but gets bumps etc. 
+source("02_data_cleaning.R")
+df_plain = clean_2(df)
+df_in = in_out_sample(df_plain$df_trans, gdp = df_plain$df_trans$GDPC1, h_max = h_max)
+X_in_plain = df_in$insample_dataframe[,-(1:2)]
+y_in_plain = df_in$gdp_raw_in
+X_out_plain = df_plain$df_trans[( (dim(df_plain$df_trans)[1]-h_max + 1):(dim(df_plain$df_trans)[1]) ), -(1:2)]
+ 
+source("06_rf.R")
+rf_plain_GDP = rf_plain(X = X_in_plain,
+                        gdp = y_in_plain,
+                        oos_dataframe = X_out_plain, #
+                        mtry = ncol(df_in$insample_dataframe)/3,
+                        # number of predictors used is square root of predictors
+                        ntrees = 500,
+                        Fstdf = FALSE,
+                        xi = data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"])
+# plot growth forecast of plain rf
+gdp_forecast_plot(df_plain$df_trans$GDPC1, gdp_forecast = rf_plain_GDP$plain_forest_pred,
+                         se = sd(rf_plain_GDP$plain_forest_pred),
+                         "oos_growth_forecasts_rf_plain", ylab = "GDP",
+                         col = "green", CI = FALSE)
+# shows: rf cannot capture trends (i.e. extrapolote) when using NON-STATIONARY ts data
+
+#############################################################
 
 
-
-############### estimate rf with rolling window approach: 
+##############################################################
+# estimate rf with rolling window approach: 
 # using a-priori hyper parameter model specification
 # and training new forest each iteration
 source("06_rf.R")
@@ -329,10 +404,10 @@ which.min(eval_for_rf$mae) #  h = 1 has min mae value
 print(eval_for_ar)
 print(eval_for_rf)
 
-# linear models better!!
+# linear models better so far
 
 
-### converting GDP back (not growth) with rolling window 
+### converting GDP back (not growth) when rolling window approach is used  
 source("05_functions.R")
 result_rf_GDP = feed_in(result = rf_plain_rolling, gdp = data$df_trans$GDPC1, h_max, forh) # insert GDP level values
 View(result_rf_GDP)
@@ -363,15 +438,6 @@ which.min(eval_for_rf_GDP$mae) #  h = 2 has min mae value
 # compare to ar11
 print(eval_for_ar)
 print(eval_for_rf_GDP)
-
-
-### 1) hyper parameter tuning
-# using different packages
-# using cv ???
-
-#a) analyze opt. tree trained on data up to 2000Q1 via importance plot bla bla
-
-### 2) again using rolling window and training new forest each prediction (same optimal hyperparameters)
 
 
 ### 3) using new hyperparameter within each iteration??
