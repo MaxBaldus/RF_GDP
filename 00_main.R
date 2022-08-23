@@ -1,11 +1,11 @@
-# clean enviroment
+# clean environment
 rm(list=ls()) # clear out all variables in current session 
 
 # Set working directory
-# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 
 # office:
-wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
+# wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 # wd = "C:/Users/u32/Desktop/Max/RF_GDP"
 
 #wd = ""  # enter you wd
@@ -260,12 +260,12 @@ which.min(rf_plain_growth$forest$mse) # number of trees that minimize OOB sample
 randomForest::varImpPlot(rf_plain_growth$forest)
 # %increase in MSE and increase in node purity 
 
+# evaluating forecasts:
 
 ### converting GDP back, i.e. inverting the diff(log(x)) transformation (get levels from growth rate)
-test_1 = Reduce(function(x,y) {x * exp(y)}, rf_plain_growth$plain_forest_pred, 
-                init=data$df_trans$GDPC1[data$df_trans$sasdate == "1999-12-01"], accumulate=T)
-test_2 = exp(cumsum(rf_plain_growth$plain_forest_pred)) * data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"]
-gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = test_1, 
+source("05_functions.R")
+gdp_inverted = exp(cumsum(rf_plain_growth$plain_forest_pred)) * data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"]
+gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = gdp_inverted, 
                   se = sd(test_2),
                   "oos_growth_forecasts_rf_plain", ylab = "GDP", 
                   col = "green", CI = FALSE)
@@ -292,9 +292,9 @@ rf_plain_vs = rf_plain_valid(X_in_train[,-1], y_in_train, X_in_test[,-1], y_in_t
                              oos_dataframe = X_out[,-1], ntrees = ntree, 
                              mtry = round(sqrt(dim(data_in$insample_dataframe[,-(1:3)])[2])) )
 plot(rf_plain_vs$forest) # OOB sample error 
-# class(rf_plain_vs$forest)
+class(rf_plain_vs$forest)
 # [1] "randomForest.formula" "randomForest"
-# predict(rf_plain_vs$forest, X_out[,-1]) # rf cannot predict when using a validation set 
+# predict(rf_plain_vs$forest$call, X_out[,-1]) # rf cannot predict when using a validation set 
 class(rf_plain_vs$forest)
 rf_plain_vs$forest$predicted # predicted values of inpute data based on out-of-bag samples
 rf_plain_vs$forest$mse # mean square error: sum of squared residuals divided by n -> for the OOB samples respectively 
@@ -346,19 +346,11 @@ ggplot(data=plot.data, aes(x=ntrees, y=oob, color="OOB")) +
   scale_color_manual(values = colors) 
   #scale_y_continuous()
 
-# use opt number of trees later ? or hyper parameter tune again
-# using method that gave fewest mse.. ?
-
-#############################################################
-# hyperparameter tuning
-# with for loop: using 1:all regressors 
-# using ranger now to fit rf (since faster to fit a forest than using rf packages)
-# using 3 functions inside loop to compute oob, validation_error, cv_error for each hyperparameter combination
-# ntree not tuning???
-
-#a) analyze opt. tree trained on data up to 2000Q1 via importance plot bla bla
-
-### 2) again using rolling window and training new forest each prediction (same optimal hyperparameters)
+# number of trees that yields lowest Error respectively:
+which.min(rf_plain_growth$forest$mse) # number of trees that minimize OOB sample error: 395
+which.min(rf_plain_vs$forest$mse) # number of trees that minimize OOB sample error: 395
+which.min(cv_ntree_plain) # number of trees that minimize OOB sample error: 395
+# seems to stabilize btw. 300 to 500 
 
 #############################################################
 # estimate GDP using plain rf without making all time series in the dataset stationary!! 
@@ -389,18 +381,16 @@ gdp_forecast_plot(df_plain$df_trans$GDPC1, gdp_forecast = rf_plain_GDP$plain_for
                          col = "green", CI = FALSE)
 # shows: rf cannot capture trends (i.e. extrapolote) when using NON-STATIONARY ts data
 
-#############################################################
-
-
 ##############################################################
 # estimate rf with rolling window approach: 
 # using a-priori hyper parameter model specification
 # and training new forest each iteration
 source("06_rf.R")
+# using OOB error 
 rf_plain_rolling = rf_plain_rolling(df = data$df_trans[,-c(1,3)], # exclude data column and GDPC1
                                     gdp = data$df_trans$GDP_GR,
                                     mtry = (ncol(data$df_trans) - 3)/3, # predictors used is square root of predictors
-                                    ntrees = 8000, 
+                                    ntrees = 500, 
                                     h_max, forh)
 View(rf_plain_rolling)
 
@@ -419,24 +409,20 @@ for (j in 1:5) {
   print(head(result_ar[,(2*j-1)])) # printing first forecast
   print(sd(result_ar[,(2*j-1)])) # printing standard error 
 }
-
+# evaluate forecasts
 source("05_functions.R")
 eval_for_rf = eval_forc(result_rf[1:(dim(result_rf)[1]-1),], forh) 
 # using all but last row (since no comparable data)
 print(eval_for_rf)
-
-which.min(eval_for_rf$me) # h = 2 forecast has min me value
+which.min(eval_for_rf$me) # h = 3 forecast has min me value
 which.min(eval_for_rf$mse) # h = 1 has min mse value
 which.min(eval_for_rf$mae) #  h = 1 has min mae value
-
 # compare to ar11
 print(eval_for_ar)
 print(eval_for_rf)
-
 # linear models better so far
 
-
-### converting GDP back (not growth) when rolling window approach is used  
+##### converting GDP back (not growth) when rolling window approach is used  
 source("05_functions.R")
 result_rf_GDP = feed_in(result = rf_plain_rolling, gdp = data$df_trans$GDPC1, h_max, forh) # insert GDP level values
 View(result_rf_GDP)
@@ -468,5 +454,99 @@ which.min(eval_for_rf_GDP$mae) #  h = 2 has min mae value
 print(eval_for_ar)
 print(eval_for_rf_GDP)
 
+#############################################################
+# hyperparameter tuning: find out optimal hyperparameter for each year in the forecasting window
+# these values respectively are then used again in the rolling-window forecasting scheme 
+# for comparison reasons: the oob error, test error and cv error are used
 
-### 3) using new hyperparameter within each iteration??
+# hyperparameter to tune: 
+# number of variables to choose from for each tree-split: grid from 1 to p 
+# sample size: #observations used for training of each tree => low sample size means less correlation, but higher bias
+# and v.v.: larger sample size might yield more variance: using range of 60%-80%
+# nodesize: to control complexity of each tree: determines number of observations in terminal nodes: few observations means
+# large trees (deep trees) => larger variance, smaller bias 
+# don't need to tune number of trees: as seen before, ntree stabilizes at around 200: up to 500 trees is sufficient
+
+mtry_grid = seq(5, ncol(data$df_trans[,-c(1,2,3)]), 2) # start with 5 split variabless, than increase up to p (bagging)
+samp_size_grid = c(0.55, 0.632, 0.7, 0.8)
+node_size_grid = seq(3,9, 2)
+
+# for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
+
+# 1) OOB error: 
+# for each new year: fit forest to each hyperparameter combination -> evaluate on current year
+# save oob error into matrix: rows are the years, columns are the parameter combinations
+# for lowest error of the year: store ntree the yielded lowest error for the parameter combination
+
+hyper_oob_final = matrix(0, nrow = 22, ncol = 4) # initialize matrix to store opt. hyper parameter combination in
+colnames(hyper_oob_final) = c("OOB Error", "mtry", "samp_size", "node_size")
+rownames(hyper_oob_final) = sprintf("%d", seq(2000, 2021, by = 1))
+source("06_rf.R")
+
+
+N = length(data$df_trans[,2]) # length of time series
+Nin = N - h_max # length of in sample observations (each quarter)
+Nin_year = seq(from = Nin+4, to = N, by = 4) # starting quarter of each new year, from 2000 to 2022
+
+counter_year = 1
+# always append next 4 quarters and compute oob error for each new year (for each hyperparam combination)
+for (year in Nin_year) {
+  current_df = data$df_trans[1:year,]
+  View(current_df)
+  
+  # initialize accuracy matrix for current year
+  rf_acc = data.frame(matrix(ncol = 4, nrow = 0)) 
+  colnames(rf_acc) = c("Error", "mtry","samp_size", "node_size")
+  count = 1 # counter for the rows
+  
+  # hyper parameter grids
+  for (mtry in mtry_grid) {
+    for (samp_size in samp_size_grid) {
+      for (node_size in node_size_grid) {
+        # seed = 100 # starting seed ?? incrase each iteration - or always same seed?
+        forest = rf_ranger(df = current_df[,-c(1,3)], ntree = 500, 
+                           mtry = mtry, samp_frac = samp_size, node_size = node_size,
+                           seed = 123)
+        # store error for current hyperparam combination
+        rf_acc[count,"Error"] = forest$prediction.error # extract oob error
+        rf_acc[count, "mtry"] = mtry
+        rf_acc[count, "samp_size"] = samp_size
+        rf_acc[count, "node_size"] = node_size
+        
+        count = count + 1
+        
+      }
+    }
+  }
+  # extract optimal hyperparams for current year
+  hyper_oob_final[counter_year,] = rf_acc[which.min(rf_acc_2[,1]),]
+  View(hyper_oob_final)
+  browser()
+  
+  counter_year = younter_year + 1
+}
+# save hyper_oob_final 
+saveRDS(hyper_oob_final, file = "output/hyperparams_oob.rda")
+# readRDS("output/hyperparams_oob.rda")
+
+# using test_error Procedure:
+# for each year, a grid of hyperparameter combination: (the hyperparameters are mtry and n.nodes) is tested
+# fist rf is fit on data up to test data (e.g. 2000 in first iteration)
+# and evaluated on first year later (since h = 4), using test error
+# then the optimal parameters are saved for the respective year, 
+# then the forecast horizon is made larger: again yielding optimal parameters the next year, and so on
+
+################################################################
+# now using cv: for each hyperparameter combination: the estimation and test set is enlarged each time
+# computing 20 test-errors, which are then averaged to store the error for the certain combination 
+# hence in the end: only have one parameter combination for the entire series 
+
+###################################################################
+#a) analyze opt. tree trained on data up to 2000Q1 via importance plot bla bla  ?????
+
+
+
+
+##########################################################################
+# 2) again using rolling window and training new forest each prediction, but this time
+# with the optimal number of parameters obtainend from last-half year, based on OOB and cv error
