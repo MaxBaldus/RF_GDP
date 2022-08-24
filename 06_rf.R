@@ -221,7 +221,7 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree){
     # extract optimal hyper parameter for the current year
     hyper_oob_final[counter_year,] = rf_acc[which.min(rf_acc[,1]),]
     View(hyper_oob_final)
-    browser()
+    # browser()
     
     counter_year = counter_year + 1
   }
@@ -284,9 +284,8 @@ rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntre
 }
 #################################################
 # again rf with rolling window, but now using optimal parameter specification for each year
-rf_optparam_rolling = function(df, gdp, ntrees, mtry, h_max, forh,
+rf_optparam_rolling = function(df, gdp, ntrees, mtry, h_max, forh){
                                # !!!!!!!!!! hyper_oob_final
-                               ) {
   N = length(df[,2]) # length of time series
   Nin = N - h_max # length of in sample observations
   print(paste0("N=", N))

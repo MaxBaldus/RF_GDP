@@ -2,10 +2,10 @@
 rm(list=ls()) # clear out all variables in current session 
 
 # Set working directory
-wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 
 # office:
-# wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
+wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 # wd = "C:/Users/u32/Desktop/Max/RF_GDP"
 
 #wd = ""  # enter you wd
@@ -265,7 +265,7 @@ randomForest::varImpPlot(rf_plain_growth$forest)
 source("05_functions.R")
 gdp_inverted = exp(cumsum(rf_plain_growth$plain_forest_pred)) * data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"]
 gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = gdp_inverted, 
-                  se = sd(test_2),
+                  se = sd(gdp_inverted),
                   "oos_growth_forecasts_rf_plain", ylab = "GDP", 
                   col = "green", CI = FALSE)
 # error accumulates => the larger the horizon, the more and more GDP is overestimated 
@@ -476,10 +476,14 @@ rownames(hyper_oob_final) = sprintf("%d", seq(2000, 2021, by = 1))
 View(hyper_oob_final)
 
 source("06_rf.R")
+start_time = Sys.time()
 # for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
 hyper_oob_final = rf_ranger_oob(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 500)
 saveRDS(hyper_oob_final, file = "output/hyperparams_oob.rda") # save hyper_oob_final 
 # readRDS("output/hyperparams_oob.rda")
+end_time = Sys.time()
+print(paste("estimation time", end_time-start_time))
+
 
 ### 2) using test_error Procedure / LAST BLOCK EVALUATION
 # again for each year, grid of the hyper parameter combination is computed
