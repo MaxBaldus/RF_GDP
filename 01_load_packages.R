@@ -7,6 +7,7 @@ install_and_load = function(a){
     install.packages("tsapp")
     install.packages("forecast")
     install.packages("ggplot2")
+    install.packages("ranger")
     #install.packages("mFilter")
     
     # for using github:
@@ -23,6 +24,7 @@ install_and_load = function(a){
   library(tseries)
   library(forecast)
   library(ggplot2)
+  library(ranger)
   
   #library(mFilter)
   # github

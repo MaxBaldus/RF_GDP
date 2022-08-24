@@ -80,10 +80,19 @@ gdp_growth_forecast_plot = function(gdp, gdp_forecast, se, title, ylab, col, CI)
     legend("bottomleft", legend = c("Model prediction", "95% Confidence intervall"), 
            col = c(col, "orange"), lty = 1, cex = 0.5)
   }
-
 }
 
-
+# plotting errors rate using ggplot
+ggplot_errors = function(df, colors){
+  ggplot(data=plot.data, aes(x=ntrees, y=oob, color="OOB")) +
+    geom_line(linetype="solid") +
+    geom_line(aes(x=ntrees, y=test_error, color="Test Error"), linetype="solid") +
+    geom_line(aes(x=ntrees, y=cv_error, color="CV Error"), linetype="solid") +
+    # theme(axis.title = element_blank()) +
+    # ggtitle("Error comparison") + 
+    labs(x = "number of trees", y = "MSE", color = "Error Type") +
+    scale_color_manual(values = colors) 
+}
 
 
 
