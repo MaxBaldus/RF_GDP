@@ -91,7 +91,7 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, h_max, forh) {
       # use row before (-j) respectively to forecast h = 2 (subtract 2) ...
       X_test = X_train[(dim(X_train)[1]-j),-1] 
     }
-    print(p)
+    # print(p)
     # feed in h = 1,2,3,4 predictions
     result[i-Nin+1,2*(1:length(forh))-1] = p[]
     
@@ -150,7 +150,7 @@ rf_rolling_valid_set = function(df, gdp, ntrees, mtry, h_max, forh){
       # use row before (-j) respectively to forecast h = 2 (subtract 2) ...
       X_test = X_train[(dim(X_train)[1]-j),-1] 
     }
-    print(p)
+    # print(p)
     # feed in h = 1,2,3,4 predictions
     result[i-Nin+1,2*(1:length(forh))-1] = p[]
     
@@ -218,11 +218,16 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree){
       }
     }
     View(rf_acc)
+    
     # extract optimal hyper parameter for the current year
-    hyper_oob_final[counter_year,] = rf_acc[which.min(rf_acc[,1]),]
+    # for (ele in 1:4) {
+    #   append(hyper_oob_final[counter_year,ele], rf_acc[which.min(rf_acc[,1]),ele])
+    # }
+    # hyper_oob_final[counter_year,] = rf_acc[which.min(rf_acc[,1]),]
+    browser()
+    append(hyper_oob_final[counter_year,], rf_acc[which.min(rf_acc[,1]),])
     View(hyper_oob_final)
     # browser()
-    
     counter_year = counter_year + 1
   }
   return(hyper_oob_final)
@@ -273,10 +278,11 @@ rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntre
       }
     }
     View(rf_acc)
+    browser()
     # extract optimal hyper parameter for the current year
     hyper_oob_final[counter_year,] = rf_acc[which.min(rf_acc[,1]),]
     View(hyper_oob_final)
-    browser()
+    
     
     counter_year = counter_year + 1
   }

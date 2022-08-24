@@ -5,8 +5,9 @@ rm(list=ls()) # clear out all variables in current session
 # wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 
 # office:
-wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
+# wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 # wd = "C:/Users/u32/Desktop/Max/RF_GDP"
+wd = "C:/Users/Guest/Desktop/Max/RF_GDP"
 
 #wd = ""  # enter you wd
 
@@ -470,8 +471,8 @@ node_size_grid = seq(3,9, 2)
 # save oob error into matrix: rows are the years, columns are the parameter combinations
 # for lowest error of the year: store ntree the yielded lowest error for the parameter combination
 
-hyper_oob_final = matrix(0, nrow = 22, ncol = 4) # initialize matrix to store opt. hyper parameter combination in
-colnames(hyper_oob_final) = c("OOB Error", "mtry", "samp_size", "node_size")
+hyper_oob_final = data.frame(0, nrow = 22, ncol = 4) # initialize matrix to store opt. hyper parameter combination in
+colnames(hyper_oob_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
 rownames(hyper_oob_final) = sprintf("%d", seq(2000, 2021, by = 1))
 View(hyper_oob_final)
 
@@ -496,9 +497,11 @@ print(paste("estimation time", end_time-start_time))
 # again yielding optimal parameters the next year, and so on
 
 source("06_rf.R")
+start_time = Sys.time()
 hyper_test_final = rf_hyper_test_set(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 500)
-
-
+saveRDS(hyper_test_final, file = "output/hyper_test_final.rda")
+end_time = Sys.time()
+print(paste("estimation time", end_time-start_time))
 ################################################################
 # now using cross_validation, i.e. BLOCKED CROSS VALIDATION
 # same approach as when using last bock evaluation, but now 
