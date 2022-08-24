@@ -259,8 +259,7 @@ which.min(rf_plain_growth$forest$mse) # number of trees that minimize OOB sample
 # importance plot
 randomForest::varImpPlot(rf_plain_growth$forest)
 # %increase in MSE and increase in node purity 
-
-# evaluating forecasts:
+# using ggplot2 
 
 ### converting GDP back, i.e. inverting the diff(log(x)) transformation (get levels from growth rate)
 source("05_functions.R")
@@ -273,7 +272,8 @@ gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = gdp_inverted,
 
 
 #################################################################
-# now using validation set approach: fit model in first part of the series => then evaluate on later part,
+# now using validation set approach / LAST BLOCK EVALUATION
+# fit model in first part of the series => then evaluate on later part,
 # all inside training data: X_in goes from 1959-06-01 to 1999-12-01, which are approx. 40 years => use first 32 years
 # as training data and data from 1991 onwards as test-data set
 X_in_train = data_in$insample_dataframe[1:which(X_in$sasdate == "1991-03-01"),-c(2,3)] 
@@ -302,8 +302,9 @@ rf_plain_vs$forest$mse # mean square error: sum of squared residuals divided by 
 rf_plain_vs$forest$test$mse # test mean squared error, for each tree number  
 
 #############################################################################
-# now using cross-validation: but cannot completely shuffle df => need to use step-wise approach
-# here: slicing data frame: using next 4 quarters (1 year) each time to validate,
+# now using cross-validation / BLOCKED CROSS VALIDATION 
+# but cannot completely shuffle df, here I need to use step-wise approach
+# Therefore the df is sliced, using next 4 quarters (1 year) each time to validate,
 # starting with 1970-03-01 
 # then: estimate rf and compute test error for the next 4 quarters (1 year)
 # store $mse (so that in the end have mse for all forests with different number of trees)
@@ -333,18 +334,11 @@ cv_ntree_plain = apply(cv_plain, 1, mean) # apply mean to to matrix cv_plain by 
 
 ######################################################
 # compare oob-error, validation-error and cross-validation error using ggplot:
+source("04_plots.R")
 plot.data = data.frame(ntrees = 1:ntree, oob = rf_plain_growth$forest$mse, 
                        test_error = rf_plain_vs$forest$test$mse, cv_error = cv_ntree_plain) 
 colors = c("OOB" = "black", "Test Error" = "blue", "CV Error" = "red")
-ggplot(data=plot.data, aes(x=ntrees, y=oob, color="OOB")) +
-  geom_line(linetype="solid") +
-  geom_line(aes(x=ntrees, y=test_error, color="Test Error"), linetype="solid") +
-  geom_line(aes(x=ntrees, y=cv_error, color="CV Error"), linetype="solid") +
-  # theme(axis.title = element_blank()) +
-  # ggtitle("Error comparison") + 
-  labs(x = "number of trees", y = "MSE", color = "Error Type") +
-  scale_color_manual(values = colors) 
-  #scale_y_continuous()
+ggplot_errors(df = plot.data, colors = colors)
 
 # number of trees that yields lowest Error respectively:
 which.min(rf_plain_growth$forest$mse) # number of trees that minimize OOB sample error: 395
@@ -455,11 +449,11 @@ print(eval_for_ar)
 print(eval_for_rf_GDP)
 
 #############################################################
-# hyperparameter tuning: find out optimal hyperparameter for each year in the forecasting window
+# hyper parameter tuning: find out optimal hyperparameter for each year in the forecasting window
 # these values respectively are then used again in the rolling-window forecasting scheme 
 # for comparison reasons: the oob error, test error and cv error are used
 
-# hyperparameter to tune: 
+# hyper parameters to tune: 
 # number of variables to choose from for each tree-split: grid from 1 to p 
 # sample size: #observations used for training of each tree => low sample size means less correlation, but higher bias
 # and v.v.: larger sample size might yield more variance: using range of 60%-80%
@@ -467,86 +461,56 @@ print(eval_for_rf_GDP)
 # large trees (deep trees) => larger variance, smaller bias 
 # don't need to tune number of trees: as seen before, ntree stabilizes at around 200: up to 500 trees is sufficient
 
-mtry_grid = seq(5, ncol(data$df_trans[,-c(1,2,3)]), 2) # start with 5 split variabless, than increase up to p (bagging)
+mtry_grid = seq(5, ncol(data$df_trans[,-c(1,2,3)]), 2) # start with 5 split variables, than increase up to p (bagging)
 samp_size_grid = c(0.55, 0.632, 0.7, 0.8)
 node_size_grid = seq(3,9, 2)
 
-# for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
-
-# 1) OOB error: 
-# for each new year: fit forest to each hyperparameter combination -> evaluate on current year
+### 1) OOB error: 
+# for each new year: fit forest to each hyper parameter combination -> evaluate on current year
 # save oob error into matrix: rows are the years, columns are the parameter combinations
 # for lowest error of the year: store ntree the yielded lowest error for the parameter combination
 
 hyper_oob_final = matrix(0, nrow = 22, ncol = 4) # initialize matrix to store opt. hyper parameter combination in
 colnames(hyper_oob_final) = c("OOB Error", "mtry", "samp_size", "node_size")
 rownames(hyper_oob_final) = sprintf("%d", seq(2000, 2021, by = 1))
+View(hyper_oob_final)
+
 source("06_rf.R")
-
-
-N = length(data$df_trans[,2]) # length of time series
-Nin = N - h_max # length of in sample observations (each quarter)
-Nin_year = seq(from = Nin+4, to = N, by = 4) # starting quarter of each new year, from 2000 to 2022
-
-counter_year = 1
-# always append next 4 quarters and compute oob error for each new year (for each hyperparam combination)
-for (year in Nin_year) {
-  current_df = data$df_trans[1:year,]
-  View(current_df)
-  
-  # initialize accuracy matrix for current year
-  rf_acc = data.frame(matrix(ncol = 4, nrow = 0)) 
-  colnames(rf_acc) = c("Error", "mtry","samp_size", "node_size")
-  count = 1 # counter for the rows
-  
-  # hyper parameter grids
-  for (mtry in mtry_grid) {
-    for (samp_size in samp_size_grid) {
-      for (node_size in node_size_grid) {
-        # seed = 100 # starting seed ?? incrase each iteration - or always same seed?
-        forest = rf_ranger(df = current_df[,-c(1,3)], ntree = 500, 
-                           mtry = mtry, samp_frac = samp_size, node_size = node_size,
-                           seed = 123)
-        # store error for current hyperparam combination
-        rf_acc[count,"Error"] = forest$prediction.error # extract oob error
-        rf_acc[count, "mtry"] = mtry
-        rf_acc[count, "samp_size"] = samp_size
-        rf_acc[count, "node_size"] = node_size
-        
-        count = count + 1
-        
-      }
-    }
-  }
-  # extract optimal hyperparams for current year
-  hyper_oob_final[counter_year,] = rf_acc[which.min(rf_acc_2[,1]),]
-  View(hyper_oob_final)
-  browser()
-  
-  counter_year = younter_year + 1
-}
-# save hyper_oob_final 
-saveRDS(hyper_oob_final, file = "output/hyperparams_oob.rda")
+# for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
+hyper_oob_final = rf_ranger_oob(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 500)
+saveRDS(hyper_oob_final, file = "output/hyperparams_oob.rda") # save hyper_oob_final 
 # readRDS("output/hyperparams_oob.rda")
 
-# using test_error Procedure:
-# for each year, a grid of hyperparameter combination: (the hyperparameters are mtry and n.nodes) is tested
-# fist rf is fit on data up to test data (e.g. 2000 in first iteration)
-# and evaluated on first year later (since h = 4), using test error
-# then the optimal parameters are saved for the respective year, 
-# then the forecast horizon is made larger: again yielding optimal parameters the next year, and so on
+### 2) using test_error Procedure / LAST BLOCK EVALUATION
+# again for each year, grid of the hyper parameter combination is computed
+# now not using oob error, but using test set, which are the next 4 quarters of the next year
+# fist rf is fit on data up to test data (e.g. up to 2000 in first iteration)
+# and evaluated on first year later (since max h = 4), using test error
+# then the optimal parameters (parameter combination that yields smallest test set error)
+# are saved for the respective year, 
+# then the training horizon is increased by last year (last test test), 
+# again yielding optimal parameters the next year, and so on
+
+source("06_rf.R")
+hyper_test_final = rf_hyper_test_set(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 500)
+
 
 ################################################################
-# now using cv: for each hyperparameter combination: the estimation and test set is enlarged each time
-# computing 20 test-errors, which are then averaged to store the error for the certain combination 
-# hence in the end: only have one parameter combination for the entire series 
+# now using cross_validation, i.e. BLOCKED CROSS VALIDATION
+# same approach as when using last bock evaluation, but now 
+# always using each quarter of next test year -> then compute average of all the test_mse's,
+# for each hyper parameter combination 
 
-###################################################################
-#a) analyze opt. tree trained on data up to 2000Q1 via importance plot bla bla  ?????
 
+
+#################################################################
+# optimal hyper parameter search for the years from start of the ts up to 2000Q1
+# these values are used for the first rolling window 
+# -> use cv on entire series and then average optimal parameters?
 
 
 
 ##########################################################################
 # 2) again using rolling window and training new forest each prediction, but this time
-# with the optimal number of parameters obtainend from last-half year, based on OOB and cv error
+# with the optimal number of parameters for each year, using the oob errors
+
