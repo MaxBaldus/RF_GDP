@@ -310,7 +310,7 @@ rf_plain_vs$forest$test$mse # test mean squared error, for each tree number
 # then: estimate rf and compute test error for the next 4 quarters (1 year)
 # store $mse (so that in the end have mse for all forests with different number of trees)
 # take average mse for each ntree in the end
-cv_plain = matrix(0, nrow = ntree, ncol = length(seq(which(X_in$sasdate == "1970-03-01"), (nrow(X_in)-3), by = 4))+3)  
+cv_plain = matrix(0, nrow = ntree, ncol = length(seq(which(X_in$sasdate == "1970-03-01"), (nrow(X_in)-3), by = 4)))  
 # initialize matrix to store test error: ncol equals number of cv test sets (33)
 c = 1 # initialize running index
 for (y in (seq(which(X_in$sasdate == "1970-03-01"), (nrow(X_in)-3), by = 4) )) {
@@ -471,22 +471,26 @@ node_size_grid = seq(3,9, 2)
 # save oob error into matrix: rows are the years, columns are the parameter combinations
 # for lowest error of the year: store ntree the yielded lowest error for the parameter combination
 
-hyper_oob_final = matrix(0, nrow = 1, ncol = 4) # initialize matrix to store opt. hyper parameter combination in
-colnames(hyper_oob_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
+
+hyper_oob_final = list()
 View(hyper_oob_final)
 
 source("06_rf.R")
+Sys.time()
 start_time = Sys.time()
 # for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
 hyper_oob_final = rf_ranger_oob(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 
-                                500, hyper_para_matrix = hyper_oob_final)
+                                500, hyper_para_list = hyper_oob_final)
 saveRDS(hyper_oob_final, file = "output/hyperparams_oob.rda") # save hyper_oob_final 
-# readRDS("output/hyperparams_oob.rda")
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
 
+
+readRDS("output/hyperparams_oob.rda")
+# hyper_oob_final = matrix(0, nrow = 1, ncol = 4) 
+# colnames(hyper_oob_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
 # rename rows
-rownames(hyper_oob_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
+# rownames(hyper_oob_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
 
 
 ### 2) using test_error Procedure / LAST BLOCK EVALUATION
@@ -498,21 +502,27 @@ rownames(hyper_oob_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row r
 # are saved for the respective year, 
 # then the training horizon is increased by last year (last test test), 
 # again yielding optimal parameters the next year, and so on
-hyper_test_final = matrix(0, nrow = 1, ncol = 4) # initialize matrix to store opt. hyper parameter combination in
-colnames(hyper_test_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
-View(hyper_test_final)
+
+
+hyper_test_final= list()
+
 
 source("06_rf.R")
+set.seed(123)
+Sys.time()
 start_time = Sys.time()
 hyper_test_final = rf_hyper_test_set(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 500, 
-                                     hyper_para_matrix = hyper_test_final
-                                    )
+                                     hyper_para_list = hyper_test_final)
 saveRDS(hyper_test_final, file = "output/hyper_test_final.rda")
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
 
-# rename rows
-rownames(hyper_test_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
+# put list into a matrix for seminar paper
+# readRDS("output/hyper_test_final.rda")
+# hyper_test_final = matrix(0, nrow = 1, ncol = 4) 
+# colnames(hyper_test_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
+# rownames(hyper_test_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
+
 ################################################################
 # now using cross_validation, i.e. BLOCKED CROSS VALIDATION
 # same approach as when using last bock evaluation, but now 
@@ -535,3 +545,9 @@ rownames(hyper_test_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row 
 # 2) again using rolling window and training new forest each prediction, but this time
 # with the optimal number of parameters for each year, using the oob errors!
 
+
+
+
+
+### to do:
+# delete some View()
