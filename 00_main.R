@@ -471,19 +471,22 @@ node_size_grid = seq(3,9, 2)
 # save oob error into matrix: rows are the years, columns are the parameter combinations
 # for lowest error of the year: store ntree the yielded lowest error for the parameter combination
 
-hyper_oob_final = data.frame(0, nrow = 22, ncol = 4) # initialize matrix to store opt. hyper parameter combination in
+hyper_oob_final = matrix(0, nrow = 1, ncol = 4) # initialize matrix to store opt. hyper parameter combination in
 colnames(hyper_oob_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
-rownames(hyper_oob_final) = sprintf("%d", seq(2000, 2021, by = 1))
 View(hyper_oob_final)
 
 source("06_rf.R")
 start_time = Sys.time()
 # for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
-hyper_oob_final = rf_ranger_oob(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 500)
+hyper_oob_final = rf_ranger_oob(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 
+                                500, hyper_para_matrix = hyper_oob_final)
 saveRDS(hyper_oob_final, file = "output/hyperparams_oob.rda") # save hyper_oob_final 
 # readRDS("output/hyperparams_oob.rda")
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
+
+# rename rows
+rownames(hyper_oob_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
 
 
 ### 2) using test_error Procedure / LAST BLOCK EVALUATION
@@ -495,29 +498,40 @@ print(paste("estimation time", end_time-start_time))
 # are saved for the respective year, 
 # then the training horizon is increased by last year (last test test), 
 # again yielding optimal parameters the next year, and so on
+hyper_test_final = matrix(0, nrow = 1, ncol = 4) # initialize matrix to store opt. hyper parameter combination in
+colnames(hyper_test_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
+View(hyper_test_final)
 
 source("06_rf.R")
 start_time = Sys.time()
-hyper_test_final = rf_hyper_test_set(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 500)
+hyper_test_final = rf_hyper_test_set(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 500, 
+                                     hyper_para_matrix = hyper_test_final
+                                    )
 saveRDS(hyper_test_final, file = "output/hyper_test_final.rda")
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
+
+# rename rows
+rownames(hyper_test_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
 ################################################################
 # now using cross_validation, i.e. BLOCKED CROSS VALIDATION
 # same approach as when using last bock evaluation, but now 
-# always using each quarter of next test year -> then compute average of all the test_mse's,
+# always using each quarter of next test year as test_set (one row)
+# -> then compute average of all the 4 test MSE's,
 # for each hyper parameter combination 
+# really needed? I.E. NEEDED TO  ESTIMATE TEST ERROR BETTER? OR IS LAST BLOCK EVALUATION ENOUGH?
 
 
 
 #################################################################
 # optimal hyper parameter search for the years from start of the ts up to 2000Q1
-# these values are used for the first rolling window 
-# -> use cv on entire series and then average optimal parameters?
-
+# now: for each hyperparamater combination: slice dataframe, starting with 1980Q1, up to 2000Q1,
+# refit model with same hyperparams => then storing oob error for each evaluation
+# => the compute average error for the particular hyperparameter combination
+# setting seed again for each new combination to make results comparable 
 
 
 ##########################################################################
 # 2) again using rolling window and training new forest each prediction, but this time
-# with the optimal number of parameters for each year, using the oob errors
+# with the optimal number of parameters for each year, using the oob errors!
 

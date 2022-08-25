@@ -183,12 +183,12 @@ rf_ranger = function(df, ntree, mtry, node_size, samp_frac, seed){
   return(rf)
 }
 # using ranger package for hyperparameter training using oob 
-rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree){
+rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, hyper_para_matrix){
   N = nrow(df) # length of time series
   Nin = N - h_max # length of in sample observations (each quarter)
   Nin_year = seq(from = Nin+4, to = N, by = 4) # starting at first quarter of each new year, from 2000 to 2022
   
-  counter_year = 1
+  #counter_year = 1
   # always append next 4 quarters and compute oob error for each new year (for each hyper parameter combination)
   for (year in Nin_year) {
     current_df = df[1:year,]
@@ -198,7 +198,7 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree){
     rf_acc = data.frame(matrix(ncol = 4, nrow = 0)) 
     colnames(rf_acc) = c("Error", "mtry","samp_size", "node_size")
     count = 1 # counter for the rows
-    
+    View(rf_acc)
     # hyper parameter grids
     for (mtry in mtry_grid) {
       for (samp_size in samp_size_grid) {
@@ -206,7 +206,7 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree){
           set.seed(123) 
           forest = rf_ranger(df = current_df[,-c(1,3)], ntree = ntree, 
                              mtry = mtry, samp_frac = samp_size, node_size = node_size)
-          # store error for current hyperparam combination
+          # store error for current hyper param combination
           rf_acc[count,"Error"] = forest$prediction.error # extract oob error
           rf_acc[count, "mtry"] = mtry
           rf_acc[count, "samp_size"] = samp_size
@@ -218,28 +218,23 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree){
       }
     }
     View(rf_acc)
-    
     # extract optimal hyper parameter for the current year
-    # for (ele in 1:4) {
-    #   append(hyper_oob_final[counter_year,ele], rf_acc[which.min(rf_acc[,1]),ele])
-    # }
-    # hyper_oob_final[counter_year,] = rf_acc[which.min(rf_acc[,1]),]
+    hyper_para_matrix = rbind(hyper_para_matrix, rf_acc[which.min(rf_acc[,1]),])
+    
+    View(hyper_para_matrix)
     browser()
-    append(hyper_oob_final[counter_year,], rf_acc[which.min(rf_acc[,1]),])
-    View(hyper_oob_final)
-    # browser()
-    counter_year = counter_year + 1
+    # counter_year = counter_year + 1
   }
-  return(hyper_oob_final)
+  return(hyper_para_matrix)
 }
 ### using test-set and randomForest package
-rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree){
+rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, hyper_para_matrix){
   N = nrow(df) # length of time series
   Nin = N - h_max # length of in sample observations (each quarter)
   Nin_year = seq(from = Nin, to = N, by = 4) # starting at first quarter of each new year, from 2000 to 2022
 
-  counter_year = 1
-  # always append next 4 quarters and compute oob error for each new year (for each hyper parameter combination)
+  # counter_year = 1
+  # always append next 4 quarters and compute test error for each new year (for each hyper parameter combination)
   for (year in Nin_year) {
     current_train_df = df[1:year,]
     current_test_df = df[(year+1):(year+4),] # using the next 4 quarters for testing 
@@ -250,7 +245,7 @@ rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntre
     rf_acc = data.frame(matrix(ncol = 4, nrow = 0)) 
     colnames(rf_acc) = c("Error", "mtry","samp_size", "node_size")
     count = 1 # counter for the rows
-    
+    View(rf_acc)
     # hyper parameter grids
     for (mtry in mtry_grid) {
       for (samp_size in samp_size_grid) {
@@ -264,7 +259,7 @@ rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntre
         
           # store error for current hyperparam combination
           # since always growing up to 500 trees, always use error when ntree = 500,
-          # therefore making sure error stabilized enough 
+          # therefore making sure error stabilized  
           # browser()
           rf_acc[count,"Error"] =  forest$test$mse[ntree] 
           rf_acc[count, "mtry"] = mtry
@@ -278,15 +273,14 @@ rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntre
       }
     }
     View(rf_acc)
-    browser()
     # extract optimal hyper parameter for the current year
-    hyper_oob_final[counter_year,] = rf_acc[which.min(rf_acc[,1]),]
-    View(hyper_oob_final)
+    hyper_para_matrix = rbind(hyper_para_matrix, rf_acc[which.min(rf_acc[,1]),])
+    View(hyper_para_matrix)
+    browser()
     
-    
-    counter_year = counter_year + 1
+    # counter_year = counter_year + 1
   }
-  return(hyper_oob_final)
+  return(hyper_para_matrix)
 }
 #################################################
 # again rf with rolling window, but now using optimal parameter specification for each year
