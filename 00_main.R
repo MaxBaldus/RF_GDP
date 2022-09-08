@@ -1,46 +1,50 @@
 # clean environment
 rm(list=ls()) # clear out all variables in current session 
 
-# Set working directory
-# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 
+# cat("Enter your working directory, e.g. C:/Users/Guest/Desktop/Max/RF_GDP")
+# wd = invisible(readline(prompt="Enter wd: "))
+
+# Set working directory
+wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 # office:
 # wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 # wd = "C:/Users/u32/Desktop/Max/RF_GDP"
-wd = "C:/Users/Guest/Desktop/Max/RF_GDP"
+# wd = "C:/Users/Guest/Desktop/Max/RF_GDP"
 
-#wd = ""  # enter you wd
 
 setwd(wd)
 
 # Load Packages
-source("01_load_packages.R")  # load package file
-install_and_load(a = FALSE) # set a to TRUE if you want to install packages in 01_load_packages.R file
+source("01_load_packages.R")  # load R code which contains a function that loads all the packages used in the following
+cat("Set a to TRUE if you want to install packages, a to FALSE if not")
+a = FALSE
+# invisible(readline(prompt="Enter TRUE or FALSE: "))
+install_and_load(a = a) 
 
 ##############################################################################################
 # Load Data
-df = read.csv("input/current.csv") # load dataframe 
+df = read.csv("input/current.csv") # load the spreadsheet data 
 
 # Inspect the raw Data
 source("02_data_cleaning.R") # load data-cleaning file
-
 inspect(df)
+
+# invisible(readline(prompt="Press [enter] to proceed"))
 
 #Dimensions of df: 255 rows (observations) and 246 variables (excluding the date column)
 #55 variables contain NA entries 
 #Last value available: "2022-03-01"
 #first value available: "3/1/1959"
 
+# Clean the Data frame, i.e. making each time series stationary 
+data = clean(df) # list with all relevant components extracted
+# df_trans is the data frame used for fitting the forests
 
-
+# using df by carstensen???
+# gdp_raw = read.csv("input/")
 # load ts from carstensen and exchange gdp column (ensure using same target as other participants)
 # df[length(ts)-dim(df)[1]:dim(df)[1]]
-
-# Clean Data frame
-source("02_data_cleaning.R") # load data-cleaning file
-data = clean(df) # list with all relevant component extracted 
-
-# use gDP from carstensen (small differences in the decimal places)
 
 ##############################################################################################
 # plotting gdp
@@ -50,10 +54,9 @@ gdp_plot(data$df_trans[,2], title = "GDP growth rate", ylab = "log returns")
 
 # in sample data
 # Forecasting 88 quarters
-
 h_max = 88 # forecast horizon: 4 quarters of 22 years (i.e. 88 quarters)
 
-# in sample dataframe
+# in sample dataframe, i.e. cutting of the df at 2000Q1´
 data_in = in_out_sample(df = data$df_trans, gdp = data$gdp_raw, h_max)
 
 # plotting in sample data
@@ -73,11 +76,11 @@ ar(data$gdp_raw, 1,1, h_max)
 # Using AR(1,1) model based on acf and pacf
 # coefficients of the AR model do not seem to be significant
 # residuals of AR model seem to be white noise according to LjungBoxPierce test, 
-# but qq-plot shows somewhat systematic deviation
-# 2 large outliers due to covid pandemic:
+# but qq-plot shows somewhat systematic deviation, 
+# mostly because of the 2 large outliers due to covid pandemic:
 
-################## using only in-sample data and non-transformend GDP
-# in the following: using 1st order differencing to make GDP stationary
+################## using only in-sample data (up to 2000Q1) and non-transformend GDP
+# making GDP stationary by using 1st differencing in the following
 
 ar_21 = ar(data_in$gdp_raw_in,2,1, h_max)
 # acf yields ma of order 2, pacf indicate long memory?
@@ -101,12 +104,10 @@ ar_11 = ar(data_in$gdp_raw_in, ar_ord = 1, ma_ord = 1 , h_max)
 # 464805.7 7.980165 7.980782 8.018125
 # p-value mostly larger than 0.01 => residuals seem to be white noise
 
+rw = ar(data_in$gdp_raw_in, ar_ord = 0, ma_ord = 0 , h_max)
 
-# fitting a random walk model
-rw = ar(data_in$gdp_raw_in, 0,0, h_max)
-# residuals no white-noise: ar_models better
-
-###################### estimating and forecasting GDP growth
+###################### estimating and forecasting GDP growth with linear model
+# model selection applied to GDP growth
 ar_22_growth = ar_growth(data_in$insample_dataframe$GDP_GR, ar_ord = 2, ma_ord = 2, h_max)
 # pacf suggests ar order of 2, acf suggests ma order of 2
 # but ma2 coefficient not significant 
@@ -129,13 +130,13 @@ ar_11_growth = ar_growth(data_in$insample_dataframe$GDP_GR, ar_ord = 1, ma_ord =
 # 0.01280727 -9.426953 -9.426336 -9.388993
 # erros slightly white-noise
 
-
 rw_growth = ar_growth(data_in$insample_dataframe$GDP_GR, ar_ord = 0, ma_ord = 0, h_max)
 # white-noise hypothesis can be rejected (errors not white-noise)
 
 ## using ar_11_growth in the following 
 
-# plotting predictions
+######################################################################
+# plotting predictions made once (non-recursive)
 source("04_plots.R")
 # plot growth predictions
 gdp_growth_forecast_plot(data$df_trans$GDP_GR, gdp_forecast = ar_11_growth$predicitons$pred, se = ar_11_growth$predicitons$se, 
@@ -149,46 +150,19 @@ gdp_forecast_plot(data$gdp_raw, rw$predicitons_inverted, "oos_forecasts_rw", yla
                   CI = TRUE, se = rw$predicitons$se)
 
 
-## using ts decomposition
-
-
 ##############################################################################################
 # estimating benchmark models recursively: using ar11 based on results above
-source("03_benchmark.R") 
-source("05_functions.R")
-
-# procedure:
-# constructing result table: the 1st, 3rd, 5th contains the h = 1,2,3,4 forecasts, 
-# then the true gdp values are inserted in every 2nd column next to forecast column
-# then computing forecast errors based on result table
-
-forh = c(1,2,3,4) # forecast horizons (not including forecast h = 0)
-
-# computing gdp GROWTH forecasts iteratively
-result_ar_growth = ar_rolling(data$df_trans$GDP_GR, ar_ord = 1, ma_ord = 1, 
-                                     h_max, forh, Fstdf = FALSE)
-
-# feed in true values
-result_ar_growth = feed_in(result = result_ar_growth, gdp = data$df_trans$GDP_GR, h_max, forh)
-View(result_ar_growth)
-
-# plotting the different forecasts
-source("04_plots.R")
-for (j in 1:5) {
-  gdp_growth_forecast_plot(data$df_trans$GDP_GR, gdp_forecast = result_ar_growth[,(2*j-1)], 
-                           se = sd(result_ar_growth[,(2*j-1)]), 
-                           title = paste0("oos_growth_forecasts_ar11, h=",j-1), 
-                           ylab = "GDP growth", col = "blue", 
-                           CI = FALSE)
-  print(head(result_ar_growth[,(2*j-1)])) # printing first forecast
-  print(sd(result_ar_growth[,(2*j-1)])) # printing standard error 
-}
 # standard errors and forecasts are pretty similar
 # corona outburst is weaker predicted, the larger the forecast horizon
+result_ar_growth = ar_rolling(data$df_trans$GDP_GR, ar_ord = 1, ma_ord = 1, 
+                       h_max, forh, 
+                       Fstdf = FALSE, xi = 0)
+# feed in true values
+result_ar_growth = feed_in(result = result_ar_growth, gdp = data$df_trans$GDP_GR[-1], h_max, forh)
+head(result_ar_growth)
 
 # Forecast evaluation
 # evaluate forecasts using: ME, MAE, MSE
-# and possibly some tests:Diebold - Marino, Superior predictive ability test, model confidence sets
 source("05_functions.R")
 eval_for_ar_growth = eval_forc(result_ar_growth[1:(dim(result_ar_growth)[1]-1),], forh) 
 # using all but last row (since no comparable data)
@@ -209,8 +183,17 @@ result_ar = ar_rolling(data$df_trans$GDPC1, ar_ord = 1, ma_ord = 1,
 
 # feed in true values
 result_ar = feed_in(result = result_ar, gdp = data$df_trans$GDPC1[-1], h_max, forh)
-View(result_ar)
+head(result_ar)
 
+eval_for_ar = eval_forc(result_ar[1:(dim(result_ar)[1]-1),], forh) 
+# using all but last row (since no comparable data)
+print(eval_for_ar)
+
+which.min(eval_for_ar$me) # h = 4 forecast has min me value ??
+which.min(eval_for_ar$mse) # h = 0 has min mse value
+which.min(eval_for_ar$mae) #  h = 0 has min mae value
+
+#####################################################
 # plotting the different forecasts
 source("04_plots.R")
 for (j in 1:5) {
@@ -222,13 +205,10 @@ for (j in 1:5) {
   print(head(result_ar[,(2*j-1)])) # printing first forecast
   print(sd(result_ar[,(2*j-1)])) # printing standard error 
 }
-eval_for_ar = eval_forc(result_ar[1:(dim(result_ar)[1]-1),], forh) 
-# using all but last row (since no comparable data)
-print(eval_for_ar)
 
-which.min(eval_for_ar$me) # h = 4 forecast has min me value ??
-which.min(eval_for_ar$mse) # h = 0 has min mse value
-which.min(eval_for_ar$mae) #  h = 0 has min mae value
+# using ggplot2
+
+
 ###########################################################################
 ## estimate plain rf and forecast
 
@@ -485,12 +465,8 @@ saveRDS(hyper_oob_final, file = "output/hyperparams_oob.rda") # save hyper_oob_f
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
 
-
-readRDS("output/hyperparams_oob.rda")
-# hyper_oob_final = matrix(0, nrow = 1, ncol = 4) 
-# colnames(hyper_oob_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
-# rename rows
-# rownames(hyper_oob_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
+# read hyperparameters
+hyper_oob_final = readRDS("output/hyperparams_oob.rda")
 
 
 ### 2) using test_error Procedure / LAST BLOCK EVALUATION
@@ -518,7 +494,7 @@ end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
 
 # put list into a matrix for seminar paper
-# readRDS("output/hyper_test_final.rda")
+hyper_test_final = readRDS("output/hyper_test_final.rda")
 # hyper_test_final = matrix(0, nrow = 1, ncol = 4) 
 # colnames(hyper_test_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
 # rownames(hyper_test_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
@@ -534,16 +510,34 @@ print(paste("estimation time", end_time-start_time))
 
 
 #################################################################
-# optimal hyper parameter search for the years from start of the ts up to 2000Q1
-# now: for each hyperparamater combination: slice dataframe, starting with 1980Q1, up to 2000Q1,
-# refit model with same hyperparams => then storing oob error for each evaluation
-# => the compute average error for the particular hyperparameter combination
-# setting seed again for each new combination to make results comparable 
+# optimal hyper parameter search for the years from start of the time series up to 2000Q1, using CV
+# (to find out the best hyperparameters to be used in the first iteration)
+# here: for each hyperparamater combination: slice dataframe and use the rows from beginning
+# up to  1978-03-01 in the first iteration as training set
+# then store oob error for the current combination, and refit model again including the next quarter into training-set,
+# and so on,
+# then take the average for the current hyperparam combination to compute the cv error
+source("06_rf.R")
+h_max_presample = 40 # 10 years * 4 quarters = 40 years
+set.seed(123) # setting seed again for each new combination to make results comparable 
+Sys.time()
+start_time = Sys.time()
+rf_hyperpara_prewindow =rf_ranger_oob_prewindow(df = data_in$insample_dataframe, # using test_df 
+                        mtry_grid, samp_size_grid, node_size_grid, 500, 
+                        h_max = h_max_presample)  
+saveRDS(rf_hyperpara_prewindow, file = "output/hyper_test_final.rda")
+end_time = Sys.time()
+print(paste("estimation time", end_time-start_time))
+
+# slice out best hyperparameter combination
+hyperset_prewindow = rf_hyperpara_prewindow[which.min(rf_hyperpara_prewindow[,1]),]
 
 
 ##########################################################################
-# 2) again using rolling window and training new forest each prediction, but this time
-# with the optimal number of parameters for each year, using the oob errors!
+# 2) again using rolling window and training new forest for each new window, but this time,
+# using the tuned hyperparameter from each year before, using the oob error
+
+# CALLING 
 
 
 

@@ -182,7 +182,9 @@ rf_ranger = function(df, ntree, mtry, node_size, samp_frac, seed){
                       seed = 123)
   return(rf)
 }
-# using ranger package for hyperparameter training using oob 
+
+# using ranger package for hyperparameter training 
+### 1) oob
 rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, hyper_para_list){
   N = nrow(df) # length of time series
   Nin = N - h_max # length of in sample observations (each quarter)
@@ -203,9 +205,9 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, h
     for (mtry in mtry_grid) {
       for (samp_size in samp_size_grid) {
         for (node_size in node_size_grid) {
-          set.seed(123) 
-          forest = rf_ranger(formula = GDP_GR ~.,
-                             df = current_df[,-c(1,3)], ntree = ntree, 
+          # set.seed(123) - setting the seed here always gives the same error result
+          forest = ranger(formula = GDP_GR ~.,
+                             data = current_df[,-c(1,3)], ntree = ntree, 
                              mtry = mtry, samp_frac = samp_size, node_size = node_size)
           # store error for current hyper param combination
           rf_acc[count,"Error"] = forest$prediction.error # extract oob error
@@ -228,7 +230,7 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, h
   }
   return(hyper_para_list)
 }
-### using test-set and randomForest package
+### 2) using test-set 
 rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, hyper_para_list){
   N = nrow(df) # length of time series
   Nin = N - h_max # length of in sample observations 
@@ -251,13 +253,8 @@ rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntre
     for (mtry in mtry_grid) {
       for (samp_size in samp_size_grid) {
         for (node_size in node_size_grid) {
-          # # seed = 100 # starting seed ?? incrase each iteration - or always same seed?
-          # forest = randomForest(GDP_GR ~., data = current_train_df[,-c(1,3)],
-          #                       xtest = current_test_df[,-(1:3)], ytest = current_test_df$GDP_GR,
-          #                       mtry = mtry, sampsize = samp_size, nodesize = node_size,
-          #                       importance = FALSE,
-          #                       ntrees = ntree)
           
+          # set.seed(123) ????? -> wrong: always gives me same seed!
           rf_ranger = ranger(formula = GDP_GR ~.,
                     data = current_train_df[,-c(1,3)], ntree = ntree, 
                     mtry = mtry, samp_frac = samp_size, node_size = node_size)
@@ -289,10 +286,64 @@ rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntre
   }
   return(hyper_para_list)
 }
-#################################################
+
+########################################################################
+# hyper parameter tuning using data up to 2000Q1
+rf_ranger_oob_prewindow = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, h_max){
+  N = nrow(df) # length of time series
+  Nin = N - h_max # length of in sample observations (each quarter)
+  Nin_year = seq(from = Nin+1, to = N, by = 1) # incrementing each quarter
+  # using each new quarter from 1990 to 2000
+  
+  rf_hyper = data.frame(matrix(ncol = 4, nrow = 0)) 
+  colnames(rf_hyper) = c("Error", "mtry","samp_size", "node_size")
+  count_hyper = 1
+  
+  for (mtry in mtry_grid) {
+    for (samp_size in samp_size_grid) {
+      for (node_size in node_size_grid) {
+        # initialize accuracy matrix for current hyperparameter combination
+        rf_acc = data.frame(matrix(ncol = 4, nrow = 0)) 
+        colnames(rf_acc) = c("Error", "mtry","samp_size", "node_size")
+        count = 1 # counter for the rows
+        
+        # fit rf for current hyper parameter combination and evaluate, iteratively
+        for (year in Nin_year) {
+          current_df = df[1:year,]
+          # browser()
+          forest = ranger(formula = GDP_GR ~.,
+                             data = current_df[,-c(1,3)], ntree = ntree, 
+                             mtry = mtry, samp_frac = samp_size, node_size = node_size)
+          # store error for current hyper param combination, for each quarter
+          rf_acc[count,"Error"] = forest$prediction.error # extract overall oob error, i.e. mse
+          rf_acc[count, "mtry"] = mtry
+          rf_acc[count, "samp_size"] = samp_size
+          rf_acc[count, "node_size"] = node_size
+          
+          count = count + 1
+        }
+        # compute cv error (average_error) for the current hyper parameter combination
+        rf_hyper[count_hyper, "Error"] = mean(rf_acc[,1])
+        rf_hyper[count_hyper, "mtry"] = mtry
+        rf_hyper[count_hyper, "samp_size"] = samp_size
+        rf_hyper[count_hyper, "node_size"] = node_size
+        count_hyper = count_hyper + 1
+        
+        if (count_hyper == 10) {
+          browser()
+        }
+        
+        }
+      }
+    }
+    return(rf_hyper)
+}
+
+#########################################################################
 # again rf with rolling window, but now using optimal parameter specification for each year
-rf_optparam_rolling = function(df, gdp, ntrees, mtry, h_max, forh){
-                               # !!!!!!!!!! hyper_oob_final
+rf_optparam_rolling = function(df, gdp, ntrees, h_max, forh,
+                               hyper_oob_final, hyperset_prewindow){
+                               # !!!!!!!!!! 
   N = length(df[,2]) # length of time series
   Nin = N - h_max # length of in sample observations
   print(paste0("N=", N))
@@ -309,22 +360,27 @@ rf_optparam_rolling = function(df, gdp, ntrees, mtry, h_max, forh){
   
   # loop over each quarter from 2000 up to 2022
   # starting with 1999-12-01 (data$df_trans[163 = Nin,])
+  
+  # first set of hyperparams
+  
+  count = 1
+  mtry = hyperset_prewindow$mtry
+  samp_size = hyper_oob_final$samp_size
+  node_size = hyper_oob_final$node_size
+  
   for (i in Nin:(N)) {
     # estimate rf again each time using new model (but same hyper parameters)
     # for each iteration: have a new dataframe
     X_train = df[1:i,]
     # y_train = y[1:i]
     
+    
     # train rf using values up to current window (starting with )
     rand_forest = randomForest::randomForest(GDP_GR ~.,
                                              data = X_train,
-                                             # data = in_sample_dataframe[,-1],
-                                             mtry = mtry,
-                                             importance = FALSE,
-                                             ntrees = ntrees
-                                             
-                                             # extract optimal variables from year before
-                                             )
+                                             ntrees = ntrees,
+                                             mtry = mtry, sampsize = samp_size, nodesize = node_size,
+                                             importance = FALSE)
     
     # since rf can only predict one step ahead using current observations:
     # need to use -h of past data to predict h times into the future 
@@ -337,14 +393,18 @@ rf_optparam_rolling = function(df, gdp, ntrees, mtry, h_max, forh){
       # use row before (-j) respectively to forecast h = 2 (subtract 2) ...
       X_test = X_train[(dim(X_train)[1]-j),-1] 
     }
-    print(p)
     # feed in h = 1,2,3,4 predictions
     result[i-Nin+1,2*(1:length(forh))-1] = p[]
-    
     # feed in h = 0 prediction (nowcast), i.e. the residuals
     h0[i-Nin+1,1] = rand_forest$predicted[i] 
     
-    # View(result)
+    # current hyperparameters
+    mtry = hyper_oob_final[[count]]$mtry
+    samp_size = hyper_oob_final[[count]]$samp_size
+    node_size = hyper_oob_final[[count]]$node_size
+    
+    count = count + 1
+    
   }
   # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000 (of the nowcast)
   h0[1:(dim(h0)[1]-1),1] = h0[2:(dim(h0)[1]),1]

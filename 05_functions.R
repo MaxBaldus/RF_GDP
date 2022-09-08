@@ -65,6 +65,7 @@ eval_forc = function(result, forh){
   me[1] = (sum(result[,1] - result[,2]))/dim(result)[1] 
   mse[1] = (sum((result[,1] - result[,2])^2))/dim(result)[1] # compute mse
   mae[1] = (sum(abs(result[,1] - result[,2])))/dim(result)[1] # compute mae
+  # include RMSE
   
   return(list(me = me, mse=mse, mae =mae)) 
 }
