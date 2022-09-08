@@ -2,7 +2,7 @@
 
 
 inspect = function(df){
-  View(df)
+  # View(df)
   # dataframe structure
   print("Dataframe structure: ")
   print(str(df)) 
@@ -108,7 +108,7 @@ in_out_sample = function(df, gdp, h_max){
   
   df_in = df[1:Nin,] 
   # df_out = df[Nin:N,] 
-  View(df_in)
+  #View(df_in)
   
   gdp_raw_in = gdp[1:Nin] # slice raw gdp 
   

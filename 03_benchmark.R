@@ -120,44 +120,6 @@ ar_growth = function(gdp, ar_ord, ma_ord, h_max){
 }
 
 ##################################################################################
-# use specific gdp component extraction method and estimate linaer models again
-
-# # 2) using seasonal trend decomposition to extract components
-# out_stl = stl(gdp_ts, s.window = 7)
-# plot(out_stl)
-# e = out_stl$time.series[,3] # extracting the residuals
-# 
-# # acf and pacf
-# print(tsapp::acfpacf(e, lag = 50, HV="V"))
-# 
-# # stationary test: dickey-fuller test 
-# print(tseries::adf.test(e))
-# 
-# # Fitting
-# #fitting ARMA[1,1] model
-# arma_fit = arima(e, order = c(1,0,1)) 
-# #significance tests
-# coef = arma_fit$coef
-# t = round(arma_fit$coef / diag(arma_fit$var.coef)^0.5, 4) # compute t-statistic
-# p = round(2*(1-pnorm(abs(t))), 4) # compute corresponding p-value & round both to 4th value
-# print(cbind(coef, t, p))
-# 
-# #fitting a random walk model
-# rw = arima(e, order = c(0,0,0), include.mean = FALSE)
-
-# # 2) using periodogram to test for a hidden periodic component
-# periodo = tsapp::periodogram(e, length(e)/2)
-# plot(periodo[,1], periodo[,2], type = "l", ylab = "periodogram", xlab = "frequency"
-#      ) # plot first column (frequency) against periodogram ordinates
-# # test for remaining hidden component
-# print(tsapp::periodotest(e))
-
-# add in inspection with periodogram etc. to make gdp stationary .. (if time and needed in the end)
-# if ar coefficient large => might want to use ARFIMA ???
-# + additional: model variance via a GARCH (ATSA book)
-
-
-#################################################################################################
 # Rolling window approach
 ar_rolling = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
   # make gdp stationary via 1st differences if Fstdf = TRUE
@@ -166,14 +128,14 @@ ar_rolling = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
     gdp_ct = gdp_d - mean(gdp_d) # centering ts
     gdp = gdp_ct 
   }
-  print(length(gdp))
+  
   # in sample forecast: fit everything with in-sample data (training data) & then forecast 
   # test data (out of sample data)
-  # using rolling windows => estimate parameters iteratively with each new observation 
+  # using rolling windows => estimate parameters iterative with each new observation 
   # and forecast each season's value, up to last value N
   # forecasting 22 years * 4 values (quarters) per year = 88 values for the out-of-sample forecasts
   
-  # using a new value iteratively to avoid mean convergence too fast 
+  # using a new value iterative to avoid mean convergence too fast 
   # (since arma cannot do long-term forecasts since lim E[gdp^hat] = 0 (if gdp centered))
   
   # corona forecast will give huge forecasting error => stop forecasting before corona ?
@@ -188,11 +150,10 @@ ar_rolling = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
   N = length(gdp) # length of time series
   Nin = N - h_max # length of in sample observations
   
-  print(N) # 251 observations
-  print(Nin) # 163 observations
+  print(paste("T = ", N)) # 251 observations
+  print(paste("T_in = ", Nin)) # 163 observations
   
   # initializing 
-  # zeros = rep(0, (N-Nin)*2*length(forh)) # first row of result matrix 
   result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh))
   # result matrix: 88 rows + 1 row, since using last observation 251 for predictions
   h0 = matrix(0,  nrow = N-Nin + 1, ncol = 2) # initializing matrix for storing nowcast values
@@ -220,7 +181,6 @@ ar_rolling = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
     # but want fitted values only from 1st quarter 2000 onwards
     h0[i-Nin+1,1] = gdp[i] - arma_fit$residual[i] 
     
-    #}
   }
   
   # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000
@@ -242,7 +202,7 @@ ar_rolling = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
   colnames(result_ar) =  c("gdp forecast h=0", "gdp",
                            "gdp forecast h=1", "gdp", "gdp forecast h=2",
                            "gdp", "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
-  View(result_ar)
+  # View(result_ar)
   return(result_ar)
   
 }

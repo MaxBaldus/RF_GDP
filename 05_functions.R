@@ -35,7 +35,7 @@ feed_in = function(result, gdp, h_max, forh){
 
 # forecast evaluations
 eval_forc = function(result, forh){
-  # excluding h = 0
+  # excluding nowcast h = 0
   result_1 = result[,-c(1,2)]
   
   num_hor = length(forh) # number of forecasts horizons (= 4, only considering h = 1,2,3,4 first)
@@ -44,6 +44,7 @@ eval_forc = function(result, forh){
   me = rep(NA, num_hor + 1) # initialize mean error
   mse = rep(NA,num_hor + 1) # initialize mse (mean squared error)
   mae = rep(NA,num_hor + 1) # initialize mae (mean absolute error)
+  rmse = rep(NA,num_hor + 1) # initialize rmse (root mean squared error)
   
   j = 1
   while (j <= num_hor) {
@@ -59,14 +60,26 @@ eval_forc = function(result, forh){
     me[j + 1] = (sum(result_2[,1] - result_2[,2]))/dim(result_2)[1] # compute me
     mse[j + 1] = (sum((result_2[,1] - result_2[,2])^2))/dim(result_2)[1] # compute mse
     mae[j+ 1] = (sum(abs(result_2[,1] - result_2[,2])))/dim(result_2)[1] # compute mae
+    rmse[j+ 1] = sqrt( (sum((result_2[,1] - result_2[,2])^2))/dim(result_2)[1]) # compute rmse
+    
     j = j + 1; 
   }
   # compute statistics for h = 0 (first entry in vector)
-  me[1] = (sum(result[,1] - result[,2]))/dim(result)[1] 
+  me[1] = (sum(result[,1] - result[,2]))/dim(result)[1] # compute mean error 
   mse[1] = (sum((result[,1] - result[,2])^2))/dim(result)[1] # compute mse
   mae[1] = (sum(abs(result[,1] - result[,2])))/dim(result)[1] # compute mae
+  rmse[1] = sqrt( (sum((result[,1] - result[,2])^2))/dim(result)[1]) # compute mae
   
-  return(list(me = me, mse=mse, mae =mae)) 
+  # get min values respectively
+  min_me = which.min(eval_for_ar_growth$me) # h = 4 forecast has min me value ??
+  min_mse = which.min(eval_for_ar_growth$mse) # h = 0 has min mse value
+  min_mae = which.min(eval_for_ar_growth$mae) #  h = 0 has min mae value
+  min_rmse = which.min(eval_for_ar_growth$rmse) #  h = 0 has min mae value
+  
+  
+  return(list(me = me, mse=mse, mae =mae, rmse = rmse, 
+              mins = list(min_me = min_me, 
+                          min_mse = min_mse, min_mae = min_mae, min_rmse = min_rmse))) 
 }
 
 # converting gdp growth rate back to GDP levels
