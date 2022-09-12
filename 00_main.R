@@ -5,9 +5,9 @@ rm(list=ls()) # clear out all variables in current session
 # wd = invisible(readline(prompt="Enter wd: "))
 
 # Set working directory
-# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 # office:
-wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
+# wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 # wd = "C:/Users/u32/Desktop/Max/RF_GDP"
 # wd = "C:/Users/Guest/Desktop/Max/RF_GDP"
 
@@ -165,7 +165,7 @@ result_ar_growth = feed_in(result = result_ar_growth, gdp = data$df_trans$GDP_GR
 head(result_ar_growth)
 
 # Forecast evaluation
-# evaluate forecasts using: ME, MAE, MSE
+# evaluate forecasts using: ME, MAE, MSE, RMSE
 source("05_functions.R")
 eval_for_ar_growth = eval_forc(result_ar_growth[1:(dim(result_ar_growth)[1]-1),], forh) 
 # using all but last row (since no comparable data)
@@ -174,6 +174,7 @@ print(eval_for_ar_growth)
 ################################ forecasting GDP iteratively (not growth)
 # using ar11 model from above: 
 source("03_benchmark.R") 
+set.seed(501)
 result_ar = ar_rolling(data$df_trans$GDPC1, ar_ord = 1, ma_ord = 1, 
                        h_max, forh, Fstdf = TRUE, 
                        xi = data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"] )
@@ -219,7 +220,7 @@ X_out = data$df_trans[( (dim(data$df_trans)[1]-h_max + 1):(dim(data$df_trans)[1]
 ntree = 500
 source("06_rf.R")
 # fit plain rf using OOB (out-of-bag error) as test-error estimate 
-set.seed(123) # set seed to ensure bagging same variables in training process
+set.seed(123) # set seed to make results comparable
 rf_plain_growth = rf_plain(X = X_in[,-1], 
                     gdp = y_in,
                     oos_dataframe = X_out[,-1], # unseen dataset for prediction
@@ -299,6 +300,7 @@ for (y in (seq(which(X_in$sasdate == "1970-03-01"), (nrow(X_in)-3), by = 4) )) {
   y_test_cv = y_in[y:(y+3)]
   # View(X_in_slice)
   # View(X_test_cv)
+  # set.seed(123) always fit same forest, only data changes ???
   rf_plain_vs = rf_plain_valid(X_train =  X_in_slice[,-1], y_train = y_in_slice, 
                                X_test =  X_test_cv[,-1], y_test = y_test_cv, 
                                oos_dataframe = X_out[,-1], ntrees = ntree, 
@@ -330,7 +332,7 @@ which.min(cv_ntree_plain) # number of trees that minimize OOB sample error: 395
 # estimate GDP using plain rf without making all time series in the dataset stationary!! 
 # 1) not first differencing GDP: completely underestimates
 # 2) using transformed dataframe and GDP: underestimates even further
-# 3) first differencing and plan_X : overestimates and captures almost nothing
+# 3) first differencing and plain_X : overestimates and captures almost nothing
 # 4) using plain df and not centered GDP: totally underestimates, but gets bumps etc. 
 source("02_data_cleaning.R")
 df_plain = clean_2(df)
@@ -361,19 +363,21 @@ gdp_forecast_plot(df_plain$df_trans$GDPC1, gdp_forecast = rf_plain_GDP$plain_for
 # and training new forest each iteration
 source("06_rf.R")
 # using OOB error 
+set.seed(501)
 rf_plain_rolling = rf_plain_rolling(df = data$df_trans[,-c(1,3)], # exclude data column and GDPC1
                                     gdp = data$df_trans$GDP_GR,
                                     mtry = (ncol(data$df_trans) - 3)/3, # predictors used is square root of predictors
                                     ntrees = 500, 
                                     h_max, forh)
-View(rf_plain_rolling)
+head(rf_plain_rolling)
 
-# feed in true values
+# feed in true gdp growth values
 result_rf = feed_in(result = rf_plain_rolling, gdp = data$df_trans$GDP_GR, h_max, forh)
-View(result_rf)
+head(result_rf)
 
 # plotting the different forecasts
 source("04_plots.R")
+par(mfrow = c(1, 1))
 for (j in 1:5) {
   gdp_growth_forecast_plot(data$df_trans[,2], gdp_forecast = result_rf[,(2*j-1)], 
                            se = sd(result_rf[,(2*j-1)]), 
@@ -388,23 +392,19 @@ source("05_functions.R")
 eval_for_rf = eval_forc(result_rf[1:(dim(result_rf)[1]-1),], forh) 
 # using all but last row (since no comparable data)
 print(eval_for_rf)
-which.min(eval_for_rf$me) # h = 3 forecast has min me value
-which.min(eval_for_rf$mse) # h = 1 has min mse value
-which.min(eval_for_rf$mae) #  h = 1 has min mae value
 # compare to ar11
 print(eval_for_ar)
-print(eval_for_rf)
 # linear models better so far
 
 ##### converting GDP back (not growth) when rolling window approach is used  
 source("05_functions.R")
 result_rf_GDP = feed_in(result = rf_plain_rolling, gdp = data$df_trans$GDPC1, h_max, forh) # insert GDP level values
-View(result_rf_GDP)
+head(result_rf_GDP)
 # convert growth rates back
 result_rf_GDP = invert_growth(result_rf_GDP,
                        y_0 = data$df_trans$GDPC1[data$df_trans$sasdate == "1999-12-01"])
-View(result_rf_GDP)
-
+head(result_rf_GDP)
+# EACH NEW YEAR AS BASELINE??
 # plot GDP level forecasts
 for (j in 1:5) {
   gdp_growth_forecast_plot(data$df_trans$GDPC1, gdp_forecast = result_rf_GDP[,(2*j-1)], 
@@ -419,17 +419,36 @@ for (j in 1:5) {
 eval_for_rf_GDP = eval_forc(result_rf_GDP[1:(dim(result_rf_GDP)[1]-1),], forh) 
 # using all but last row (since no comparable data)
 print(eval_for_rf_GDP)
-
-which.min(eval_for_rf_GDP$me) # h = 4 forecast has min me value
-which.min(eval_for_rf_GDP$mse) # h = 2 has min mse value
-which.min(eval_for_rf_GDP$mae) #  h = 2 has min mae value
-
-# compare to ar11
+# compare to ar11 
 print(eval_for_ar)
 print(eval_for_rf_GDP)
 
+### using only 1 base value 1999Q4
+source("05_functions.R")
+result_rf_GDP = feed_in(result = rf_plain_rolling, gdp = data$df_trans$GDPC1, h_max, forh) # insert GDP level values
+head(result_rf_GDP)
+# convert growth rates back
+result_rf_GDP_acc = invert_growth_err_acc(result_rf_GDP,
+                              y_0 = data$df_trans$GDPC1[data$df_trans$sasdate == "1999-12-01"])
+head(result_rf_GDP_acc)
+for (j in 1:5) {
+  gdp_growth_forecast_plot(data$df_trans$GDPC1, gdp_forecast = result_rf_GDP_acc[,(2*j-1)], 
+                           se = sd(result_rf_GDP_acc[,(2*j-1)]), 
+                           title = paste0("oos_GDP_forecasts_rf_plain, h=",j-1), 
+                           ylab = "GDP", col = "green", 
+                           CI = FALSE)
+  print(head(result_rf_GDP[,(2*j-1)])) # printing first forecast
+  print(sd(result_rf_GDP[,(2*j-1)])) # printing standard error 
+}
+# forecast evaluation when using only 1 base value
+eval_for_rf_GDP = eval_forc(result_rf_GDP_acc[1:(dim(result_rf_GDP)[1]-1),], forh) 
+# using all but last row (since no comparable data)
+print(eval_for_rf_GDP_acc)
+# compare to ar11 
+print(eval_for_ar)
+print(eval_for_rf_GDP_acc)
 #############################################################
-# hyper parameter tuning: find out optimal hyperparameter for each year in the forecasting window
+# hyper parameter tuning: find out optimal hyper parameters for each year in the forecasting window
 # these values respectively are then used again in the rolling-window forecasting scheme 
 # for comparison reasons: the oob error, test error and cv error are used
 
@@ -544,3 +563,4 @@ hyperset_prewindow = rf_hyperpara_prewindow[which.min(rf_hyperpara_prewindow[,1]
 
 ### to do:
 # delete some View()
+# all with qqplot 

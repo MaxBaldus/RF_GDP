@@ -71,28 +71,82 @@ eval_forc = function(result, forh){
   rmse[1] = sqrt( (sum((result[,1] - result[,2])^2))/dim(result)[1]) # compute mae
   
   # get min values respectively
-  min_me = which.min(eval_for_ar_growth$me) # h = 4 forecast has min me value ??
-  min_mse = which.min(eval_for_ar_growth$mse) # h = 0 has min mse value
-  min_mae = which.min(eval_for_ar_growth$mae) #  h = 0 has min mae value
-  min_rmse = which.min(eval_for_ar_growth$rmse) #  h = 0 has min mae value
+  min_me = which.min(me) # h = 4 forecast has min me value ??
+  min_mse = which.min(mse) # h = 0 has min mse value
+  min_mae = which.min(mae) #  h = 0 has min mae value
+  min_rmse = which.min(rmse) #  h = 0 has min mae value
   
   
-  return(list(me = me, mse=mse, mae =mae, rmse = rmse, 
-              mins = list(min_me = min_me, 
-                          min_mse = min_mse, min_mae = min_mae, min_rmse = min_rmse))) 
+  return(list(me = me, mse=mse, mae =mae, rmse = rmse,
+              smins = list(min_me = min_me,
+                          min_mse = min_mse, min_mae = min_mae, min_rmse = min_rmse)))
 }
 
 # converting gdp growth rate back to GDP levels
 invert_growth = function(df, y_0){
-  df_inv = matrix(0, nrow = nrow(df), ncol = ncol(df)) # initialize empty matrix
+  df_inv = matrix(0, nrow = nrow(df) + 1, ncol = ncol(df)) # initialize empty matrix
+  # store respective base value 1999Q4 as the first entry
   for (j in 1:5) {
-    df_inv[,(2*j-1)] = exp(cumsum(df[,(2*j-1)])) * y_0 # compute levels again 
+    df_inv[1,(2*j-1)] = y_0
+  }
+  # df_inv[1,1] = y_0 # h = 0 and h=1 first entry is y_0
+  # df_inv[1,3] = y_0 # h = 0 and h=1 first entry is y_0
+  # for (j in 3:5) {
+  #   df_inv[1,(2*j-1)] = df[1,(2*j-2)] # always save gdp value of period before 
+  # }
+  # attach exp(forecasts) as rows below base values respectively
+  for (j in 1:5) {
+    # browser()
+    df_inv[-1,(2*j-1)] = exp(df[,(2*j-1)]) # computing exp. transformation of growth forecasts 
+  }
+  #always compute percentage change from the TRUE GDP value of the period before 
+  #first period
+  for (j in 1:5) {
+    df_inv[2,(2*j-1)] = df_inv[1,(2*j-1)] * df_inv[2,(2*j-1)]
+  }
+  # values after
+  for (j in 1:5) {
+    for (i in 3:(nrow(df)+1)) {
+      # browser()
+      df_inv[i,(2*j-1)] = df[i-1,2] * df_inv[i,(2*j-1)] # df[i-1,(2*j)]
+    }
   }
   # insert gdp values again (2nd, 4th, 6th column etc.)
-  df_inv[,seq(2,ncol(df),by = 2)] = df[,seq(2,ncol(df),by = 2)]  
-  return(df_inv)
+  df_inv[-1,seq(2,ncol(df),by = 2)] = df[,seq(2,ncol(df),by = 2)]
+  print(df_inv)
+  return(df_inv[-1,]) # dont return first row (only respective base value)
 }
 
+# converting gdp growth rate back to GDP levels
+invert_growth_err_acc = function(df, y_0){
+  df_inv = matrix(0, nrow = nrow(df), ncol = ncol(df)) # initialize empty matrix
+  for (j in 1:5) {
+    df_inv[,(2*j-1)] = exp(cumsum(df[,(2*j-1)])) * y_0 # compute levels again from forecasts (h=0,...,4)
+  }
+  # long-version
+  # # store respective base values as the first entry, always using gdp value of period before
+  # df_inv[1,1] = y_0 # h = 0 and h=1 first entry is y_0
+  # df_inv[1,3] = y_0 # h = 0 and h=1 first entry is y_0
+  # for (j in 3:5) {
+  #   df_inv[1,(2*j-1)] = df[1,(2*j-2)] # always save gdp value of period before 
+  # }
+  # # attach exp(forecasts) as rows below base values respectively
+  # for (j in 1:5) {
+  #   # browser()
+  #   df_inv[-1,(2*j-1)] = exp(df[,(2*j-1)]) # computing exp. transformation of growth forecasts 
+  # }
+  # # always compute percentage change onto (estimated) base value from period before
+  # for (j in 1:5) {
+  #   for (i in 2:(nrow(df)+1)) {
+  #     # browser()
+  #     df_inv[i,(2*j-1)] = df_inv[i-1,(2*j-1)] * df_inv[i,(2*j-1)]
+  #   }
+  # }
+  # ERROR ACCUMULATES
+  # insert gdp values again (2nd, 4th, 6th column etc.)
+  df_inv[,seq(2,ncol(df),by = 2)] = df[,seq(2,ncol(df),by = 2)]
+  return(df_inv)
+}
 
 ##############################################################################################
 # Hodrick-Prescott Filter 

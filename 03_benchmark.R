@@ -192,6 +192,7 @@ ar_rolling = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
   result_ar = cbind(h0, result)
   print(ncol(result_ar))
   
+  # compute gdp values back (not differenced ts)
   if (Fstdf == TRUE) {
     for (i in (seq(1, ncol(result_ar), 2))) { # for each column: compute inverse of diff. operation
       result_ar[,i] =  diffinv(result_ar[,i] + mean(gdp_d), xi = xi)[-1]
