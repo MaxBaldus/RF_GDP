@@ -72,6 +72,8 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, h_max, forh) {
     X_train = df[1:i,]
     # y_train = y[1:i]
     
+    # second loop using -1,-2, ... 
+    
     # train rf using values up to current window (starting with )
     rand_forest = randomForest::randomForest(GDP_GR ~.,
                                data = X_train,

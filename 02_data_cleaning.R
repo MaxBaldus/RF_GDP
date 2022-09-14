@@ -1,7 +1,7 @@
+# functions for the mccracken dataframe
+##############################################################################################
 # data from https://research.stlouisfed.org/econ/mccracken/fred-databases/
-
-
-inspect = function(df){
+inspect_mc = function(df){
   # View(df)
   # dataframe structure
   print("Dataframe structure: ")
@@ -15,9 +15,7 @@ inspect = function(df){
   # return(varlist_df)
 }
 
-
-
-clean = function(df){
+clean_mc = function(df){
   
   # get gdp time series explicitely
   gdp_raw = df[-(1:2),2] # neglect first 2 rows of gdp
@@ -89,7 +87,7 @@ clean = function(df){
   print("Transformend dataframe: ")
   print(str(df_trans))
   
-  View(df_trans)
+  # View(df_trans)
   
   l = list(dates = dates, df_trans = df_trans, gdp_raw = gdp_raw) # put everything into list I want to return
   return(l)
@@ -138,10 +136,42 @@ clean_2 = function(df){
   print("Transformend dataframe: ")
   print(str(df_trans))
   
-  View(df_trans)
+  # View(df_trans)
     
   l = list(dates = dates, df_trans = df_trans, gdp_raw = gdp_raw) # put everything into list I want to return
   return(l)
 }
 
 
+##############################################################################################
+# df by Carstensen
+create_df = function(df, gdp){
+  data1 = as.data.frame(matrix(0, nrow = nrow(df)-10, ncol = ncol(df))) # initialize empty matrix
+  data1[,1] = openxlsx::convertToDate(as.matrix(df[-(1:10),1])) # date column
+  data1[,-1] = apply(as.matrix(df)[-(1:10),-1], 2, as.numeric) # convert characters to numbers
+  data1[,-1] = apply(data1[,-1], 2, function(x) {ifelse(is.na(x), median(x, na.rm = TRUE), x)}) # replace NA's with median
+  # column names
+  data2 = data1[,-1] # df without date column
+  colnames(data2) = as.vector(as.matrix(df)[4,-1])
+  data1 = cbind(data1[,1], data2)
+  names(data1)[names(data1) == "data1[, 1]"] = "dates"
+  # aggregate monthly data to quartely data using mean 
+  data3 = aggregate(data1[,-1], list(as.yearqtr(data1$dates)), mean)
+  # stationary regressors
+  data4 = apply(data3[,-1], 2, diff) # first difference, loosing first observation
+  data4 = as.matrix(cbind(data3[-1,1], data4))
+  # gdp
+  gdp_data = as.data.frame(gdp[-(1:6),])
+  gdp_data$num = as.numeric(gdp_data[,2])
+  GDP_GR = diff(log(gdp_data$num)) # compute growth rate
+  gdp_data1 = cbind(gdp_data[-1,],GDP_GR)
+  # combine dataframes
+  gdp_data2 = gdp_data1[which(gdp_data1$GDPC1=="04.01.1959"):which(gdp_data1$GDPC1=="04.01.2022"),c(1,3,4)]
+  data = cbind(data4[,1], gdp_data2[,2:3], data4[,-1])
+  names(data)[names(data) == "data4[, 1]"] = "dates"
+  names(data)[names(data) == "num"] = "GDPC1"
+  data = as.data.frame(data[1:which(data[,1] == 2021.75),])
+  return(data)
+}
+
+# function for making each regressor stationary 

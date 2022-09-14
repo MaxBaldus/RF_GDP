@@ -1,8 +1,6 @@
-# clean environment
+# 1) set up the environment
+##############################################################################################
 rm(list=ls()) # clear out all variables in current session 
-
-# cat("Enter your working directory, e.g. C:/Users/Guest/Desktop/Max/RF_GDP")
-# wd = invisible(readline(prompt="Enter wd: "))
 
 # Set working directory
 wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
@@ -11,39 +9,27 @@ wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 # wd = "C:/Users/u32/Desktop/Max/RF_GDP"
 # wd = "C:/Users/Guest/Desktop/Max/RF_GDP"
 
-
 setwd(wd)
 
 # Load Packages
-source("01_load_packages.R")  # load R code which contains a function that loads all the packages used in the following
-cat("Set a to TRUE if you want to install packages, a to FALSE if not")
-a = FALSE
-# invisible(readline(prompt="Enter TRUE or FALSE: "))
+source("01_load_packages.R")
+a = FALSE # set a to true if You want to install packages
 install_and_load(a = a) 
 
+# 2) prepare the data
 ##############################################################################################
-# Load Data
-df = read.csv("input/current.csv") # load the spreadsheet data 
-
-# Inspect the raw Data
+# Load data by McCracken
+df_mc = read.csv("input/current.csv") # load the spreadsheet data 
 source("02_data_cleaning.R") # load data-cleaning file
-inspect(df)
+inspect_mc(df_mc)
+data = clean_mc(df_mc) # list with all relevant components extracted
 
-# invisible(readline(prompt="Press [enter] to proceed"))
-
-#Dimensions of df: 255 rows (observations) and 246 variables (excluding the date column)
-#55 variables contain NA entries 
-#Last value available: "2022-03-01"
-#first value available: "3/1/1959"
-
-# Clean the Data frame, i.e. making each time series stationary 
-data = clean(df) # list with all relevant components extracted
-# df_trans is the data frame used for fitting the forests
-
-# using df by carstensen???
-# gdp_raw = read.csv("input/")
-# load ts from carstensen and exchange gdp column (ensure using same target as other participants)
-# df[length(ts)-dim(df)[1]:dim(df)[1]]
+# df by Carstensen 
+df = read_excel("input/SW_Updated_2022.xlsx", sheet = "Monthly Data")
+gdp = read_excel("input/SW_Updated_2022.xlsx", sheet = "US GDP")
+source("02_data_cleaning.R")
+data = create_df(df, gdp)
+View(data)
 
 ##############################################################################################
 # plotting gdp
@@ -134,7 +120,7 @@ rw_growth = ar_growth(data_in$insample_dataframe$GDP_GR, ar_ord = 0, ma_ord = 0,
 
 ## using ar_11_growth in the following 
 
-######################################################################
+##############################################################################################
 # plotting predictions made once (non-recursive)
 source("04_plots.R")
 # plot growth predictions
@@ -192,7 +178,7 @@ print(eval_for_ar)
 # h = 0 has min mse value, 
 #  h = 0 has min mae value
 
-#####################################################
+##############################################################################################
 # plotting the different forecasts
 source("04_plots.R")
 for (j in 1:5) {
@@ -208,7 +194,7 @@ for (j in 1:5) {
 # using ggplot2
 
 
-###########################################################################
+##############################################################################################
 ## estimate plain rf and forecast
 
 # create train (in_sample) and test (out_of_sample) dataframe for GDP growth
@@ -252,7 +238,7 @@ gdp_forecast_plot(data$df_trans$GDPC1, gdp_forecast = gdp_inverted,
 # error accumulates => the larger the horizon, the more and more GDP is overestimated 
 
 
-#################################################################
+##############################################################################################
 # now using validation set approach / LAST BLOCK EVALUATION
 # fit model in first part of the series => then evaluate on later part,
 # all inside training data: X_in goes from 1959-06-01 to 1999-12-01, which are approx. 40 years => use first 32 years
@@ -282,7 +268,7 @@ rf_plain_vs$forest$mse # mean square error: sum of squared residuals divided by 
 # compute other measures with rf$prediction 
 rf_plain_vs$forest$test$mse # test mean squared error, for each tree number  
 
-#############################################################################
+##############################################################################################
 # now using cross-validation / BLOCKED CROSS VALIDATION 
 # but cannot completely shuffle df, here I need to use step-wise approach
 # Therefore the df is sliced, using next 4 quarters (1 year) each time to validate,
@@ -314,7 +300,7 @@ for (y in (seq(which(X_in$sasdate == "1970-03-01"), (nrow(X_in)-3), by = 4) )) {
 # compute for each row (i.e. number of tree used in forest) the average of all test-set MSE's
 cv_ntree_plain = apply(cv_plain, 1, mean) # apply mean to to matrix cv_plain by row 
 
-######################################################
+##############################################################################################
 # compare oob-error, validation-error and cross-validation error using ggplot:
 source("04_plots.R")
 plot.data = data.frame(ntrees = 1:ntree, oob = rf_plain_growth$forest$mse, 
@@ -328,7 +314,7 @@ which.min(rf_plain_vs$forest$mse) # number of trees that minimize OOB sample err
 which.min(cv_ntree_plain) # number of trees that minimize OOB sample error: 395
 # seems to stabilize btw. 300 to 500 
 
-#############################################################
+##############################################################################################
 # estimate GDP using plain rf without making all time series in the dataset stationary!! 
 # 1) not first differencing GDP: completely underestimates
 # 2) using transformed dataframe and GDP: underestimates even further
@@ -357,7 +343,7 @@ gdp_forecast_plot(df_plain$df_trans$GDPC1, gdp_forecast = rf_plain_GDP$plain_for
                          col = "green", CI = FALSE)
 # shows: rf cannot capture trends (i.e. extrapolote) when using NON-STATIONARY ts data
 
-##############################################################
+##############################################################################################
 # estimate rf with rolling window approach: 
 # using a-priori hyper parameter model specification
 # and training new forest each iteration
@@ -404,7 +390,7 @@ head(result_rf_GDP)
 result_rf_GDP = invert_growth(result_rf_GDP,
                        y_0 = data$df_trans$GDPC1[data$df_trans$sasdate == "1999-12-01"])
 head(result_rf_GDP)
-# EACH NEW YEAR AS BASELINE??
+
 # plot GDP level forecasts
 for (j in 1:5) {
   gdp_growth_forecast_plot(data$df_trans$GDPC1, gdp_forecast = result_rf_GDP[,(2*j-1)], 
@@ -447,7 +433,7 @@ print(eval_for_rf_GDP_acc)
 # compare to ar11 
 print(eval_for_ar)
 print(eval_for_rf_GDP_acc)
-#############################################################
+##############################################################################################
 # hyper parameter tuning: find out optimal hyper parameters for each year in the forecasting window
 # these values respectively are then used again in the rolling-window forecasting scheme 
 # for comparison reasons: the oob error, test error and cv error are used
@@ -517,7 +503,7 @@ hyper_test_final = readRDS("output/hyper_test_final.rda")
 # colnames(hyper_test_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
 # rownames(hyper_test_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
 
-################################################################
+##############################################################################################
 # now using cross_validation, i.e. BLOCKED CROSS VALIDATION
 # same approach as when using last bock evaluation, but now 
 # always using each quarter of next test year as test_set (one row)
@@ -527,7 +513,7 @@ hyper_test_final = readRDS("output/hyper_test_final.rda")
 
 
 
-#################################################################
+##############################################################################################
 # optimal hyper parameter search for the years from start of the time series up to 2000Q1, using CV
 # (to find out the best hyperparameters to be used in the first iteration)
 # here: for each hyperparamater combination: slice dataframe and use the rows from beginning
@@ -551,7 +537,7 @@ print(paste("estimation time", end_time-start_time))
 hyperset_prewindow = rf_hyperpara_prewindow[which.min(rf_hyperpara_prewindow[,1]),]
 
 
-##########################################################################
+##############################################################################################
 # 2) again using rolling window and training new forest for each new window, but this time,
 # using the tuned hyperparameter from each year before, using the oob error
 
@@ -564,3 +550,4 @@ hyperset_prewindow = rf_hyperpara_prewindow[which.min(rf_hyperpara_prewindow[,1]
 ### to do:
 # delete some View()
 # all with qqplot 
+# again forecasting with rf: now using also the quartely data from mccracken (if not the same??)
