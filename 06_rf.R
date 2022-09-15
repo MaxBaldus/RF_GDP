@@ -1,4 +1,3 @@
-######################################
 # plain rf using OOB 
 rf_plain = function(X, gdp , oos_dataframe, ntrees, mtry, Fstdf, xi){
   # using first difference:
@@ -28,9 +27,10 @@ rf_plain = function(X, gdp , oos_dataframe, ntrees, mtry, Fstdf, xi){
   
 }
 
-############################################################
+##############################################################################################
 # plain random forest using validation set
-rf_plain_valid = function(X_train, y_train, X_test, y_test, oos_dataframe, ntrees, mtry){
+##############################################################################################
+rf_plain_valid = function(X_train, y_train, X_test, y_test, ntrees, mtry){
   # train random forest on in_sample_dataframe
   rand_forest = randomForest::randomForest(x = X_train,
                                            y = y_train,
@@ -43,75 +43,121 @@ rf_plain_valid = function(X_train, y_train, X_test, y_test, oos_dataframe, ntree
   # plot(rand_forest)
   # prediction
   # rand_forest_pred = predict(rand_forest2, oos_dataframe) 
-  return(list(forest = rand_forest, plain_forest_pred = 0))
+  return(rand_forest)
 }
-
-###########################################################
+##############################################################################################
 # forecasting rf using rolling window with a-priori specification
 # i.e. refitting rf, but always with the same hyper parameters
-rf_plain_rolling = function(df, gdp, ntrees, mtry, h_max, forh) {
+##############################################################################################
+rf_plain_rolling = function(df, gdp, ntrees, mtry, forh) {
   N = length(df[,2]) # length of time series
-  Nin = N - h_max # length of in sample observations
+  Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
   print(paste0("N=", N))
-  print(paste0("Nin=", N))
-  
-  
+  print(paste0("Nin=", Nin))
+
   # initializing
-  zeros = rep(0, (N-Nin)*2*length(forh)) # first row of result matrix 
-  result = matrix(zeros, nrow = N-Nin + 1, ncol = 2*length(forh))
+  result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
   
-  p = rep(0, length(forh)) # initialize vector to store predictions in
-  # first entry: h = 0, then h = 1,..., 4
-  h0 = matrix(0,  nrow = N-Nin + 1, ncol = 2) # initializing matrix for storing nowcast values
-  
-  # loop over each quarter from 2000 up to 2022
-  # starting with 1999-12-01 (data$df_trans[163 = Nin,])
-  for (i in Nin:(N)) {
-    # estimate rf again each time using new model (but same hyper parameters)
-    # for each iteration: have a new dataframe
-    X_train = df[1:i,]
-    # y_train = y[1:i]
-    
-    # second loop using -1,-2, ... 
-    
-    # train rf using values up to current window (starting with )
-    rand_forest = randomForest::randomForest(GDP_GR ~.,
-                               data = X_train,
-                               # data = in_sample_dataframe[,-1],
-                               mtry = mtry,
-                               importance = FALSE,
-                               ntrees = ntrees)
-    
-    # since rf can only predict one step ahead using current observations:
-    # need to use -h of past data to predict h times into the future 
-    X_test = X_train[(dim(X_train)[1]),-1] # use last row from current in sample data for the h = 1 prediction
-    # print(X_test)
-    for (j in 1:length(forh)) {
-      # first loop: h = 1 (using observations in t-1, e.g. 1999Q4 in first i-loop)
-      p[j] = predict(rand_forest, X_test)
-     
-      # use row before (-j) respectively to forecast h = 2 (subtract 2) ...
-      X_test = X_train[(dim(X_train)[1]-j),-1] 
+  # loop over each quarter from 2000 up to 2022,
+  # doing a direct oos forecast for each horizon h
+  col_counter = 1
+  for (h in c(0, forh)) {
+    print(paste0("h=", h))
+    X = df[1:(nrow(df)-h),-2]  # y_t+h = f(y_t,X_t), excluding GDPCR
+    y = df[(1+h):nrow(df),c(1,3)]
+    for (i in Nin:(N-h)) {
+      # estimate rf again each quarter using new model (but same hyper parameters)
+      # for each iteration: have a new dataframe
+      X_train = X[1:i,]
+      y_train = y[1:i,]
+      # train rf using values up to current window (starting with )
+      rand_forest = ranger::ranger(x = X_train[,-1],
+                                   y = y_train[,-1],
+                                   mtry = mtry,
+                                   importance = "none",
+                                   num.trees = ntrees)
+      # compute fitted value (of current Nin) & save
+      p = rand_forest$predictions[length(rand_forest$predictions)] 
+      result[i-Nin+1,col_counter] = p
+      
     }
-    # print(p)
-    # feed in h = 1,2,3,4 predictions
-    result[i-Nin+1,2*(1:length(forh))-1] = p[]
-    
-    # feed in h = 0 prediction (nowcast), i.e. the residuals
-    h0[i-Nin+1,1] = rand_forest$predicted[i] 
-    
-    # View(result)
+    col_counter = col_counter + 2
+    print(result)
   }
-  # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000 (of the nowcast)
-  h0[1:(dim(h0)[1]-1),1] = h0[2:(dim(h0)[1]),1]
-  h0[dim(h0)[1],1] = 0  # last row (is 0)
-  
-  result_all = cbind(h0,result)
-  colnames(result_all) =  c("gdp forecast h=0", "gdp",
-                        "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp", 
+  colnames(result) =  c("gdp forecast h=0", "gdp",
+                        "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
                         "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
-  return(result_all)
+  
+  return(result)
 }
+
+##############################################################################################
+# old direct forecasting regime
+# ##############################################################################################
+# rf_plain_rolling = function(df, gdp, ntrees, mtry, h_max, forh) {
+#   N = length(df[,2]) # length of time series
+#   Nin = N - h_max # length of in sample observations
+#   print(paste0("N=", N))
+#   print(paste0("Nin=", N))
+#   
+#   
+#   # initializing
+#   zeros = rep(0, (N-Nin)*2*length(forh)) # first row of result matrix 
+#   result = matrix(zeros, nrow = N-Nin + 1, ncol = 2*length(forh))
+#   
+#   p = rep(0, length(forh)) # initialize vector to store predictions in
+#   # first entry: h = 0, then h = 1,..., 4
+#   h0 = matrix(0,  nrow = N-Nin + 1, ncol = 2) # initializing matrix for storing nowcast values
+#   
+#   # loop over each quarter from 2000 up to 2022
+#   # starting with 1999-12-01 (data$df_trans[163 = Nin,])
+#   for (i in Nin:(N)) {
+#     # estimate rf again each time using new model (but same hyper parameters)
+#     # for each iteration: have a new dataframe
+#     X_train = df[1:i,]
+#     # y_train = y[1:i]
+#     
+#     # second loop using -1,-2, ... 
+#     
+#     # train rf using values up to current window (starting with )
+#     rand_forest = randomForest::randomForest(GDP_GR ~.,
+#                                              data = X_train,
+#                                              # data = in_sample_dataframe[,-1],
+#                                              mtry = mtry,
+#                                              importance = FALSE,
+#                                              ntrees = ntrees)
+#     
+#     # since rf can only predict one step ahead using current observations:
+#     # need to use -h of past data to predict h times into the future 
+#     X_test = X_train[(dim(X_train)[1]),-1] # use last row from current in sample data for the h = 1 prediction
+#     # print(X_test)
+#     for (j in 1:length(forh)) {
+#       # first loop: h = 1 (using observations in t-1, e.g. 1999Q4 in first i-loop)
+#       p[j] = predict(rand_forest, X_test)
+#       
+#       # use row before (-j) respectively to forecast h = 2 (subtract 2) ...
+#       X_test = X_train[(dim(X_train)[1]-j),-1] 
+#     }
+#     # print(p)
+#     # feed in h = 1,2,3,4 predictions
+#     result[i-Nin+1,2*(1:length(forh))-1] = p[]
+#     
+#     # feed in h = 0 prediction (nowcast), i.e. the residuals
+#     h0[i-Nin+1,1] = rand_forest$predicted[i] 
+#     
+#     # View(result)
+#   }
+#   # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000 (of the nowcast)
+#   h0[1:(dim(h0)[1]-1),1] = h0[2:(dim(h0)[1]),1]
+#   h0[dim(h0)[1],1] = 0  # last row (is 0)
+#   
+#   result_all = cbind(h0,result)
+#   colnames(result_all) =  c("gdp forecast h=0", "gdp",
+#                             "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp", 
+#                             "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
+#   return(result_all)
+# }
+
 ##############################################################################
 ### can weg ???
 # rf rolling using evaluation set: hence rf is trained on data up to "the current year,

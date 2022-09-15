@@ -1,5 +1,5 @@
 # Estimating AR & RW models as benchmarks and forecasting 
-
+##################################################################################
 # simple GDP forecast using first order difference
 ar = function(gdp, ar_ord, ma_ord, h_max){
   par(mfrow = c(1,1))
@@ -120,44 +120,39 @@ ar_growth = function(gdp, ar_ord, ma_ord, h_max){
 }
 
 ##################################################################################
-# Rolling window approach
-ar_rolling = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
+# recursive oos forecasting scheme
+##################################################################################
+ar_rolling_recursive = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
   # make gdp stationary via 1st differences if Fstdf = TRUE
   if (Fstdf == TRUE) {
     gdp_d = diff(gdp) # 1st differencing ts
     gdp_ct = gdp_d - mean(gdp_d) # centering ts
-    gdp = gdp_ct 
+    gdp = gdp_ct
   }
-  
-  # in sample forecast: fit everything with in-sample data (training data) & then forecast 
-  # test data (out of sample data)
-  # using rolling windows => estimate parameters iterative with each new observation 
+
+  # in sample forecast: fit everything with in-sample data (training data) & then
+  # directly forecast the corresponding test data (out of sample data)
+  # by using a rolling window => estimate parameters iterative with each new observation
   # and forecast each season's value, up to last value N
-  # forecasting 22 years * 4 values (quarters) per year = 88 values for the out-of-sample forecasts
-  
-  # using a new value iterative to avoid mean convergence too fast 
-  # (since arma cannot do long-term forecasts since lim E[gdp^hat] = 0 (if gdp centered))
-  
-  # corona forecast will give huge forecasting error => stop forecasting before corona ?
-  # but since not in in-sample data => can just stop there (no problem)
-  
-  # each quarter: forecast 1,2,3,4 quarters ahead, using current observation to refit the model 
+  # for each horizon h
+
+  # each quarter: forecast 1,2,3,4 quarters ahead, using current observation to refit the model
   # (get new parameter estimates),
   # but using the same (optimal) model order from above: ar_11
   # the h = 1,..., 4 forecasts are saved into a matrix, for each quarter, while each time a column is left empty
   # for the real results, which will be feed into later
-   
+
   N = length(gdp) # length of time series
   Nin = N - h_max # length of in sample observations
-  
+
   print(paste("T = ", N)) # 251 observations
   print(paste("T_in = ", Nin)) # 163 observations
-  
-  # initializing 
+
+  # initializing
   result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh))
   # result matrix: 88 rows + 1 row, since using last observation 251 for predictions
   h0 = matrix(0,  nrow = N-Nin + 1, ncol = 2) # initializing matrix for storing nowcast values
-  
+
   # loop over each quarter from 2000 up to 2022
   for (i in Nin:(N)) {
     # estimate arma model again using new observation each time (but same coefficients)
@@ -166,32 +161,29 @@ ar_rolling = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
     # e.g i = Nin = 163 => use all gdp values up to 2000-03-01 (1st quarter are used)
     arma_fit = arima(gdp[1:i], order = c(ar_ord,0,ma_ord), include.mean = FALSE)
     # last value to be used to estimate model: 2021-12-01
-    
+
     # h = 1,2,3,4
-    # hence predicting 1st, 2nd, 3rd and 4th quarter 
+    # hence predicting 1st, 2nd, 3rd and 4th quarter
     p = predict(arma_fit, n.ahead = max(forh)) # predict h = 1,2,3,4
-      
+
     # feed prediction into result matrix, each h forecast into 3,5,7 column respectively (*2 .. -1),
     # starting with first row
     result[i-Nin+1,2*(1:length(forh))-1] = p$pred
-    
+
     # h = 0: compute current fit (i.e. nowcast)
     # compute fitted values by subtracting residual of current fit (model) from current gdp value
     # when using i: first fitted value is 4th quarter 1999
     # but want fitted values only from 1st quarter 2000 onwards
-    h0[i-Nin+1,1] = gdp[i] - arma_fit$residual[i] 
-    
+    h0[i-Nin+1,1] = gdp[i] - arma_fit$residual[i]
+
   }
-  
+
   # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000
   h0[1:(dim(h0)[1]-1),1] = h0[2:(dim(h0)[1]),1]
   h0[dim(h0)[1],1] = 0  # last row (is 0)
-  
-  
-  
+
   result_ar = cbind(h0, result)
-  print(ncol(result_ar))
-  
+
   # compute gdp values back (not differenced ts)
   if (Fstdf == TRUE) {
     for (i in (seq(1, ncol(result_ar), 2))) { # for each column: compute inverse of diff. operation
@@ -205,7 +197,59 @@ ar_rolling = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
                            "gdp", "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
   # View(result_ar)
   return(result_ar)
-  
 }
 
+
+##################################################################################
+# Rolling window approach direct approach
+##################################################################################
+ar_rolling = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
+  # make gdp stationary via 1st differences if not gdp growth rate
+  if (Fstdf == TRUE) {
+    gdp_d = diff(gdp) # 1st differencing ts
+    gdp_ct = gdp_d - mean(gdp_d) # centering ts
+    gdp = gdp_ct
+  }
+  # in sample forecast: fit everything with in-sample data (training data) & then
+  # directly forecast the corresponding test data (out of sample data)
+  # by using a rolling window => estimate parameters iterative with each new observatio
+  # and forecast each season's value, up to last value N
+  # for each horizon h
+  
+  N = length(gdp) # length of time series
+  Nin = N - h_max # length of in sample observations
+  print(paste("T = ", N)) 
+  print(paste("T_in = ", Nin)) 
+  
+  # initializing
+  result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
+  # result matrix: 88 rows + 1 row, since using last observation 251 for predictions -> only 88!!!
+  
+  # loop over each quarter from 2000 up to 2022,
+  # doing a direct oos forecast for each horizon h
+  # col_counter = seq(from = 1, to =2*length(forh)+1, by = 2)
+  col_counter = 1
+  for (h in c(0, forh)) {
+    gdp_direct = gdp[1:(length(gdp)-h)] # y_t+h = f(y_t) (loose observation respectively for each h)
+    for (i in Nin:(N)) {
+      arma_fit = arima(gdp_direct[1:i], order = c(ar_ord,0,ma_ord), include.mean = FALSE)
+      # compute fitted value & save
+      p = gdp_direct[i] - arma_fit$residuals[i] # p = fitted(arma_fit)[i]
+      result[i-Nin+1,col_counter] = p
+    } 
+    # browser()
+    col_counter = col_counter + 2
+  }
+  # invert difference
+  if (Fstdf == TRUE) {
+    for (i in (seq(1, ncol(result), 2))) { # for each column: compute inverse of diff. operation
+      result[,i] =  diffinv(result[,i] + mean(gdp_d), xi = xi)[-1]
+      # xi is the starting value of the differenced series (gdp) + adding mean again (non_centered)
+    }
+  }
+  colnames(result) =  c("gdp forecast h=0", "gdp",
+                        "gdp forecast h=1", "gdp", "gdp forecast h=2",
+                        "gdp", "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
+  return(result)
+}
 

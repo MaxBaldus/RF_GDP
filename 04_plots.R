@@ -18,7 +18,7 @@ gdp_plot = function(gdp, title, ylab, CI){
 gdp_forecast_plot = function(gdp, gdp_forecast, se, title, ylab, col, CI){
   
   # ts objects
-  gdp_ts = ts(gdp, start = c(1959,1), frequency = 4) 
+  gdp_ts = ts(gdp, start = c(1959,2), end = c(2022,1) ,frequency = 4) 
   gdp_forecast_ts = ts(gdp_forecast, start = c(2000,1),end = c(2022,1), frequency = 4)
   gdp_forecast_se_ts = ts(se, start = c(2000,1),end = c(2022,1), frequency = 4)
   
@@ -34,7 +34,7 @@ gdp_forecast_plot = function(gdp, gdp_forecast, se, title, ylab, col, CI){
   }
   # zoom in: starting with first quarter in 2000 (via window function)
   # => 22 years * 4 quarters + 1 = 89
-  ts.plot(window(gdp_ts, start =c(1995,1), end = c(2022,1)), main = c(title, "zoom") ,xlab="Time", ylab=ylab, type="l"#,
+  ts.plot(window(gdp_ts, start =c(1995,1), end = c(2021,4)), main = c(title, "zoom") ,xlab="Time", ylab=ylab, type="l"#,
           # ylim = c(8000,23000)
           ) 
   lines(gdp_forecast_ts, col = col)

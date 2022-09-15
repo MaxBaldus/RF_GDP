@@ -94,23 +94,16 @@ clean_mc = function(df){
 }
 
 # create in-sample dataframe
-in_out_sample = function(df, gdp, h_max){
-  
-  # training data (in-sample) and test data (out-of-sample) for estimation via rolling window
+in_out_sample = function(df, h_max){
+  # training data (in-sample) and test data (out-of-sample) for recursive estimation
   # in-sample contains observations from "1959-03-01" up to (not including) "2000-01-01"
   # => forecasting h = 0,...,4 quarters for each year up to 2022-01-01 (last quarter 2021) 
   # i.e. 4 quarter per year => 4 * 22 = 88 quarters to forecast recursively
   
   N = length(df[,1]) # length of dataframe
   Nin = N - h_max # length of in sample dataframe
-  
   df_in = df[1:Nin,] 
-  # df_out = df[Nin:N,] 
-  #View(df_in)
-  
-  gdp_raw_in = gdp[1:Nin] # slice raw gdp 
-  
-  return(list(insample_dataframe = df_in, gdp_raw_in = gdp_raw_in))
+  return(df_in)
 }
 
 clean_2 = function(df){
@@ -145,6 +138,7 @@ clean_2 = function(df){
 
 ##############################################################################################
 # df by Carstensen
+##############################################################################################
 create_df = function(df, gdp){
   data1 = as.data.frame(matrix(0, nrow = nrow(df)-10, ncol = ncol(df))) # initialize empty matrix
   data1[,1] = openxlsx::convertToDate(as.matrix(df[-(1:10),1])) # date column

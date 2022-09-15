@@ -6,7 +6,7 @@ feed_in = function(result, gdp, h_max, forh){
   
   # gdp h=0: 
   result[1:((N-Nin)),2] = gdp[(Nin+1):N]
-  
+
   # gdp h=1: 
   result[1:((N-Nin)),4] = gdp[(Nin+1):N]
   # 4th column: insert gdp values for h = 1
@@ -32,8 +32,9 @@ feed_in = function(result, gdp, h_max, forh){
   
   return(result)
 }
-
+##############################################################################################
 # forecast evaluations
+##############################################################################################
 eval_forc = function(result, forh){
   # excluding nowcast h = 0
   result_1 = result[,-c(1,2)]
@@ -81,8 +82,9 @@ eval_forc = function(result, forh){
               smins = list(min_me = min_me,
                           min_mse = min_mse, min_mae = min_mae, min_rmse = min_rmse)))
 }
-
+##############################################################################################
 # converting gdp growth rate back to GDP levels
+##############################################################################################
 invert_growth = function(df, y_0){
   df_inv = matrix(0, nrow = nrow(df) + 1, ncol = ncol(df)) # initialize empty matrix
   # store respective base value 1999Q4 as the first entry
@@ -117,7 +119,9 @@ invert_growth = function(df, y_0){
   return(df_inv[-1,]) # dont return first row (only respective base value)
 }
 
-# converting gdp growth rate back to GDP levels
+##############################################################################################
+# converting gdp growth rate back to GDP levels: only 1 base value
+##############################################################################################
 invert_growth_err_acc = function(df, y_0){
   df_inv = matrix(0, nrow = nrow(df), ncol = ncol(df)) # initialize empty matrix
   for (j in 1:5) {
@@ -150,6 +154,7 @@ invert_growth_err_acc = function(df, y_0){
 
 ##############################################################################################
 # Hodrick-Prescott Filter 
+##############################################################################################
 hp = function(gdp){
   
   # applying HP filter to remove trend and cyclical component using the HP filter
@@ -162,12 +167,5 @@ hp = function(gdp){
          col = c("blue", "red", "green", "black"), lty = 1, cex = 0.5)
   # "don't use HP filter for forecasting"
 }
-
-# helper:
-# see which variables of the dataframe are in the fred description
-
-# varlist_df %in% varlist_fred$fred # returns a boolean TRUE or FALSE value depending on whether the element is found or not
-# which(varlist_df %in% varlist_fred$fred == FALSE) # gives the indices, that are false
-# varlist_df[c(which(varlist_df %in% varlist_fred$fred == FALSE))]
 
 
