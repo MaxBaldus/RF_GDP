@@ -64,13 +64,13 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, forh) {
   for (h in c(0, forh)) {
     print(paste0("h=", h))
     X = df[1:(nrow(df)-h),-2]  # y_t+h = f(y_t,X_t), excluding GDPCR
-    y = df[(1+h):nrow(df),c(1,3)]
+    y = df[(1+h):nrow(df),c(1,3)]# GDP target 
     for (i in Nin:(N-h)) {
       # estimate rf again each quarter using new model (but same hyper parameters)
       # for each iteration: have a new dataframe
       X_train = X[1:i,]
       y_train = y[1:i,]
-      # train rf using values up to current window (starting with )
+      # train rf using values up to current window 
       rand_forest = ranger::ranger(x = X_train[,-1],
                                    y = y_train[,-1],
                                    mtry = mtry,
@@ -163,101 +163,105 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, forh) {
 # rf rolling using evaluation set: hence rf is trained on data up to "the current year,
 # and then evaluated on "current year"
 # then forecasts next quarters 
-rf_rolling_valid_set = function(df, gdp, ntrees, mtry, h_max, forh){
-  N = length(df[,2]) # length of time series
-  Nin = N - h_max # length of in sample observations
-  
-  # initializing
-  zeros = rep(0, (N-Nin)*2*length(forh)) # first row of result matrix 
-  result = matrix(zeros, nrow = N-Nin + 1, ncol = 2*length(forh))
-  p = rep(0, length(forh)) # initialize vector to store predictions in
-  h0 = matrix(0,  nrow = N-Nin + 1, ncol = 2) # initializing matrix for storing nowcast values
-  
-  # problem: CANNOT DO PREDICTIONS WHEN USING a test set 
-  for (i in Nin:(N)) {
-    # estimate rf again each time using new model (but same hyper parameters)
-    # for each iteration: have a new dataframe
-    X_train = df[1:i,]
-    # y_train = y[1:i]
-    
-    # train rf using values up to current window (starting with )
-    rand_forest = randomForest::randomForest(GDP_GR ~.,
-                                             data = X_train,
-                                             mtry = mtry,
-                                             importance = FALSE,
-                                             ntrees = ntrees)
-    
-    # since rf can only predict one step ahead using current observations:
-    # need to use -h of past data to predict h times into the future 
-    X_test = X_train[(dim(X_train)[1]),-1] # use last row from current in sample data for the h = 1 prediction
-    # print(X_test)
-    for (j in 1:length(forh)) {
-      # first loop: h = 1 (using observations in t-1, e.g. 1999Q4 in first i-loop)
-      p[j] = predict(rand_forest, X_test)
-      
-      # use row before (-j) respectively to forecast h = 2 (subtract 2) ...
-      X_test = X_train[(dim(X_train)[1]-j),-1] 
-    }
-    # print(p)
-    # feed in h = 1,2,3,4 predictions
-    result[i-Nin+1,2*(1:length(forh))-1] = p[]
-    
-    # feed in h = 0 prediction (nowcast), i.e. the residuals
-    h0[i-Nin+1,1] = rand_forest$predicted[i] 
-    
-    # View(result)
-  }
-  # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000 (of the nowcast)
-  h0[1:(dim(h0)[1]-1),1] = h0[2:(dim(h0)[1]),1]
-  h0[dim(h0)[1],1] = 0  # last row (is 0)
-  
-  result_all = cbind(h0,result)
-  colnames(result_all) =  c("gdp forecast h=0", "gdp",
-                            "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp", 
-                            "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
-  return(result_all)
-}
+# rf_rolling_valid_set = function(df, gdp, ntrees, mtry, h_max, forh){
+#   N = length(df[,2]) # length of time series
+#   Nin = N - h_max # length of in sample observations
+#   
+#   # initializing
+#   zeros = rep(0, (N-Nin)*2*length(forh)) # first row of result matrix 
+#   result = matrix(zeros, nrow = N-Nin + 1, ncol = 2*length(forh))
+#   p = rep(0, length(forh)) # initialize vector to store predictions in
+#   h0 = matrix(0,  nrow = N-Nin + 1, ncol = 2) # initializing matrix for storing nowcast values
+#   
+#   # problem: CANNOT DO PREDICTIONS WHEN USING a test set 
+#   for (i in Nin:(N)) {
+#     # estimate rf again each time using new model (but same hyper parameters)
+#     # for each iteration: have a new dataframe
+#     X_train = df[1:i,]
+#     # y_train = y[1:i]
+#     
+#     # train rf using values up to current window (starting with )
+#     rand_forest = randomForest::randomForest(GDP_GR ~.,
+#                                              data = X_train,
+#                                              mtry = mtry,
+#                                              importance = FALSE,
+#                                              ntrees = ntrees)
+#     
+#     # since rf can only predict one step ahead using current observations:
+#     # need to use -h of past data to predict h times into the future 
+#     X_test = X_train[(dim(X_train)[1]),-1] # use last row from current in sample data for the h = 1 prediction
+#     # print(X_test)
+#     for (j in 1:length(forh)) {
+#       # first loop: h = 1 (using observations in t-1, e.g. 1999Q4 in first i-loop)
+#       p[j] = predict(rand_forest, X_test)
+#       
+#       # use row before (-j) respectively to forecast h = 2 (subtract 2) ...
+#       X_test = X_train[(dim(X_train)[1]-j),-1] 
+#     }
+#     # print(p)
+#     # feed in h = 1,2,3,4 predictions
+#     result[i-Nin+1,2*(1:length(forh))-1] = p[]
+#     
+#     # feed in h = 0 prediction (nowcast), i.e. the residuals
+#     h0[i-Nin+1,1] = rand_forest$predicted[i] 
+#     
+#     # View(result)
+#   }
+#   # deleting fit of 4th quarter 1999: starting with 1st quarter of 2000 (of the nowcast)
+#   h0[1:(dim(h0)[1]-1),1] = h0[2:(dim(h0)[1]),1]
+#   h0[dim(h0)[1],1] = 0  # last row (is 0)
+#   
+#   result_all = cbind(h0,result)
+#   colnames(result_all) =  c("gdp forecast h=0", "gdp",
+#                             "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp", 
+#                             "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
+#   return(result_all)
+# }
 
-#############################################################
-# hyper parameter tuning 
-# using ranger package to fit rf with pre-specified hyperparameters 
-rf_ranger = function(df, ntree, mtry, node_size, samp_frac, seed){
-  rf = ranger::ranger(formula = GDP_GR ~.,
-                      data = df,
-                      mtry = mtry,
-                      min.node.size = node_size,
-                      sample.fraction = samp_frac,
-                      seed = 123)
-  return(rf)
-}
+##############################################################################
+# hyper parameter tuning with ranger package
+##############################################################################
+# rf_ranger = function(df, ntree, mtry, node_size, samp_frac, seed){
+#   rf = ranger::ranger(formula = GDP_GR ~.,
+#                       data = df,
+#                       mtry = mtry,
+#                       min.node.size = node_size,
+#                       sample.fraction = samp_frac,
+#                       seed = 123)
+#   return(rf)
+# }
 
-# using ranger package for hyperparameter training 
 ### 1) oob
 rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, hyper_para_list){
-  N = nrow(df) # length of time series
-  Nin = N - h_max # length of in sample observations (each quarter)
-  Nin_year = seq(from = Nin+4, to = N, by = 4) # starting at first quarter of each new year, from 2000 to 2022
+  N = length(df[,2]) # length of time series
+  Nin = N - (N - which(df[,1] == 1999.00)) # length of in sample observations 
+  print(paste0("N=", N))
+  print(paste0("Nin=", Nin))
+  
+  Nin_year = seq(from = Nin+4, to = N, by = 4) # starting at first quarter of each new year, from 1999 up to 2022
+  print(paste0("Nin_year=", Nin_year))
   
   counter_year = 1
   # always append next 4 quarters and compute oob error for each new year (for each hyper parameter combination)
   for (year in Nin_year) {
-    current_df = df[1:year,]
-    View(current_df)
+    current_df = df[1:(year-1),]
     
     # initialize accuracy matrix for current year
     rf_acc = data.frame(matrix(ncol = 4, nrow = 0)) 
     colnames(rf_acc) = c("Error", "mtry","samp_size", "node_size")
     count = 1 # counter for the rows
-    View(rf_acc)
+    
     # hyper parameter grids
     for (mtry in mtry_grid) {
       for (samp_size in samp_size_grid) {
         for (node_size in node_size_grid) {
           # set.seed(123) - setting the seed here always gives the same error result
           forest = ranger(formula = GDP_GR ~.,
-                             data = current_df[,-c(1,3)], ntree = ntree, 
-                             mtry = mtry, samp_frac = samp_size, node_size = node_size)
-          # store error for current hyper param combination
+                             data = current_df[,-c(1,2)], 
+                             num.trees = ntree, 
+                             mtry = mtry, sample.fraction = samp_size, min.node.size = node_size)
+          
+          # store error for current hyper parameter combination
           rf_acc[count,"Error"] = forest$prediction.error # extract oob error
           rf_acc[count, "mtry"] = mtry
           rf_acc[count, "samp_size"] = samp_size
@@ -268,7 +272,7 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, h
         }
       }
     }
-    View(rf_acc)
+    browser()
     # extract optimal hyper parameter for the current year and save it into the list
     hyper_para_list[[counter_year]] = rf_acc[which.min(rf_acc[,1]),]
     # View(hyper_para_list)
@@ -278,6 +282,7 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, h
   }
   return(hyper_para_list)
 }
+
 ### 2) using test-set 
 rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, hyper_para_list){
   N = nrow(df) # length of time series

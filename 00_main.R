@@ -412,17 +412,17 @@ print(eval_for_ar)
 ##############################################################################################
 # hyper parameter tuning: find out optimal hyper parameters for each year in the forecasting window
 # these values respectively are then used again in the rolling-window forecasting scheme 
-# for comparison reasons: the oob error, test error and cv error are used
-
+# for comparison reasons: the oob error and cv error are used
+##############################################################################################
 # hyper parameters to tune: 
 # number of variables to choose from for each tree-split: grid from 1 to p 
 # sample size: #observations used for training of each tree => low sample size means less correlation, but higher bias
 # and v.v.: larger sample size might yield more variance: using range of 60%-80%
-# nodesize: to control complexity of each tree: determines number of observations in terminal nodes: few observations means
+# nodesize: to control complexity of each tree: determines number of observations in terminal nodes: few nodes means
 # large trees (deep trees) => larger variance, smaller bias 
 # don't need to tune number of trees: as seen before, ntree stabilizes at around 200: up to 500 trees is sufficient
 
-mtry_grid = seq(5, ncol(data$df_trans[,-c(1,2,3)]), 2) # start with 5 split variables, than increase up to p (bagging)
+mtry_grid = seq(5, ncol(data[,-c(1,2,3)]), 2) # start with 5 split variables, than increase up to p (bagging) by 2
 samp_size_grid = c(0.55, 0.632, 0.7, 0.8)
 node_size_grid = seq(3,9, 2)
 
@@ -431,16 +431,15 @@ node_size_grid = seq(3,9, 2)
 # save oob error into matrix: rows are the years, columns are the parameter combinations
 # for lowest error of the year: store ntree the yielded lowest error for the parameter combination
 
-
 hyper_oob_final = list()
-View(hyper_oob_final)
 
 source("06_rf.R")
 Sys.time()
 start_time = Sys.time()
 # for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
-hyper_oob_final = rf_ranger_oob(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 
+hyper_oob_final = rf_ranger_oob(df = data, mtry_grid, samp_size_grid, node_size_grid, 
                                 500, hyper_para_list = hyper_oob_final)
+
 saveRDS(hyper_oob_final, file = "output/hyperparams_oob.rda") # save hyper_oob_final 
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
@@ -452,7 +451,7 @@ hyper_oob_final = readRDS("output/hyperparams_oob.rda")
 ### 2) using test_error Procedure / LAST BLOCK EVALUATION
 # again for each year, grid of the hyper parameter combination is computed
 # now not using oob error, but using test set, which are the next 4 quarters of the next year
-# fist rf is fit on data up to test data (e.g. up to 2000 in first iteration)
+# fist rf is fit on data up to test data (e.g. up to 1999 in the first iteration)
 # and evaluated on first year later (since max h = 4), using test error
 # then the optimal parameters (parameter combination that yields smallest test set error)
 # are saved for the respective year, 
@@ -461,7 +460,6 @@ hyper_oob_final = readRDS("output/hyperparams_oob.rda")
 
 
 hyper_test_final= list()
-
 
 source("06_rf.R")
 set.seed(123)
