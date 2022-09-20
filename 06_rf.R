@@ -95,10 +95,10 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, forh) {
 rf_rolling_GDP = function(df, gdp, ntrees, mtry, forh, xi) {
   # first differencing
   gdp_d = diff(gdp) # 1st differencing ts
-  gdp_ct = gdp_d - mean(gdp_d) # centering ts
+  # gdp_ct = gdp_d - mean(gdp_d) # centering ts
   # loosing one observation: hence also need to delete first observation in regressor data
   df = df[-1,]
-  df$GDPC1 = gdp_d # use differencend and centered gdp ts in the following
+  df$GDPC1 = gdp_d # use differencend ts for training
   
   N = length(df[,2]) # length of time series
   Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
@@ -134,20 +134,78 @@ rf_rolling_GDP = function(df, gdp, ntrees, mtry, forh, xi) {
     col_counter = col_counter + 2
     print(result)
   }
+  # # compute gdp values back (not differenced ts)
+  # for (i in (seq(1, ncol(result), 2))) { # for each 2nd column: compute inverse of diff. operation
+  #   result[,i] =  diffinv(result[,i] + mean(gdp_d), xi = xi)[-1]
+  #   # xi is the starting value of the differenced series (gdp) + adding mean again (non_centered)
+  # }
   # compute gdp values back (not differenced ts)
   for (i in (seq(1, ncol(result), 2))) { # for each 2nd column: compute inverse of diff. operation
-    result[,i] =  diffinv(result[,i] + mean(gdp_d), xi = xi)[-1]
-    # xi is the starting value of the differenced series (gdp) + adding mean again (non_centered)
+    result[,i] =  diffinv(result[,i], xi = xi)[-1]
+    # xi is the starting value of the differenced series (gdp) 
   }
-  
   colnames(result) =  c("gdp forecast h=0", "gdp",
                         "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
                         "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
   
   return(result)
 }
-##############################################################################################
 
+##############################################################################################
+# forecasting GDP (not growth) with rf using hp filter 
+##############################################################################################
+rf_rolling_hp = function(df, gdp, ntrees, mtry, forh, hp) {
+
+  gdp_ct = as.vector(gdp)
+  df$GDPC1 = gdp_ct # use hp residuals
+  
+  N = length(df[,2]) # length of time series
+  Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
+  print(paste0("N=", N))
+  print(paste0("Nin=", Nin))
+  
+  # initializing
+  result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
+  
+  # loop over each quarter from 2000 up to 2022,
+  # doing a direct oos forecast for each horizon h
+  col_counter = 1
+  for (h in c(0, forh)) {
+    print(paste0("h=", h))
+    X = df[1:(nrow(df)-h),-3]  # y_t+h = f(y_t,X_t), excluding GDPCR
+    y = cbind(df[(1+h):nrow(df),1] ,gdp_ct[(1+h):nrow(df)]) # GDP target 
+    for (i in Nin:(N-h)) {
+      # estimate rf again each quarter using new model (but same hyper parameters)
+      # for each iteration: have a new dataframe
+      X_train = X[1:(i-h),]
+      y_train = y[1:(i-h),]
+      # train rf using values up to current window 
+      rand_forest = ranger::ranger(x = X_train[,-1],
+                                   y = y_train[,-1],
+                                   mtry = mtry,
+                                   importance = "none",
+                                   num.trees = ntrees)
+      # compute fitted value (of current Nin) & save
+      p = rand_forest$predictions[length(rand_forest$predictions)] 
+      result[i-Nin+1,col_counter] = p
+      
+    }
+    col_counter = col_counter + 2
+    print(result)
+  }
+  browser()
+  # compute level GDP values back by adding extract values again
+  for (i in (seq(1, ncol(result), 2))) { # for each 2nd column: compute inverse of diff. operation
+    result[,i] =  result[,i] + 
+                  hp$trend[which(df[,1] == 2000.00):length(hp$trend)] + 
+                  hp$cycle[which(df[,1] == 2000.00):length(hp$cycle)]
+  }
+  colnames(result) =  c("gdp forecast h=0", "gdp",
+                        "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
+                        "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
+  
+  return(result)
+}
 
 ##############################################################################################
 # old direct forecasting regime

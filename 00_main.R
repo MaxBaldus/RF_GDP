@@ -481,8 +481,21 @@ eval_for_rf_GDPC1 = eval_forc(result_rf_GDPC1[1:(dim(result_rf)[1]-1),], forh)
 print(eval_for_rf_GDPC1)
 # compare to ar11
 print(eval_for_ar)
-# rf is totally overestimated when using first difference !
+
 ##############################################################################################
+# Rolling window for GDP using first Hodrick Prescott Filte
+##############################################################################################
+source("05_functions.R")
+test = hp(data$GDPC1)
+source("06_rf.R")
+set.seed(501)
+rf_rolling_GDP_hp = rf_rolling_hp(df = data, # exclude data column and GDPC1
+                                gdp = test$residuals,
+                                mtry = (ncol(data) - 3)/3, # predictors used is square root of predictors
+                                ntrees = 500, forh,
+                                hp = test$hp)
+# forecasted values is e.g. 1.849404e-13, meaning when adding trend and cycle back, yielding
+# same values as gdp ... 
 
 ##############################################################################################
 # hyper parameter tuning: find out optimal hyper parameters for each year in the forecasting window

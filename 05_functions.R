@@ -156,16 +156,18 @@ invert_growth_err_acc = function(df, y_0){
 # Hodrick-Prescott Filter 
 ##############################################################################################
 hp = function(gdp){
-  
+  gdp_ts = ts(gdp)
   # applying HP filter to remove trend and cyclical component 
   # with lambda = 1600 (for quartely data)
-  hp = hpfilter(gdp, freq = 1600)
-  hp_res = gdp - hp$trend - hp$cycle # subtracting all components for original time series
+  hp = hpfilter(gdp_ts, freq = 1600)
+  hp_res = gdp_ts - hp$trend - hp$cycle # subtracting all components for original time series
   
-  ts.plot(gdp, hp$trend, hp$cycle, hp_res,  xlab="Time", ylab="GDP", type="l", col = "blue", main = "HP Filter GDP") 
+  ts.plot(gdp, hp$trend, hp$cycle, hp_res,  xlab="Time", ylab="GDP", type="l", 
+          col = c("blue", "red", "green", "black"), main = "HP Filter GDP") 
   legend("bottomright", legend = c("gdp", "Trend component", "Cyclical component", "residuals"), 
          col = c("blue", "red", "green", "black"), lty = 1, cex = 0.5)
   # "don't use HP filter for forecasting"
+  return(list("hp"= hp, "residuals" = hp_res))
 }
 
 
