@@ -65,7 +65,6 @@ ar_full = ar(data$GDPC1, 1,1, h_max)
 # but qq-plot shows somewhat systematic deviation, 
 # mostly because of the 2 large outliers due to covid pandemic:
 
-################## 
 # using only in-sample data (up to 2000Q1) and non-transformend GDP
 # making GDP stationary by using 1st differencing in the following
 
@@ -93,7 +92,6 @@ ar_11 = ar(data_in$GDPC1, ar_ord = 1, ma_ord = 1 , h_max)
 # fitting a random walk
 rw = ar(data_in$GDPC1, ar_ord = 0, ma_ord = 0 , h_max)
 
-###################### 
 # estimating and forecasting GDP growth with linear model
 # model selection applied to GDP growth
 ar_22_growth = ar_growth(data_in$GDP_GR, ar_ord = 2, ma_ord = 2, h_max)
@@ -121,9 +119,8 @@ ar_11_growth = ar_growth(data_in$GDP_GR, ar_ord = 1, ma_ord = 1, h_max)
 rw_growth = ar_growth(data_in$GDP_GR, ar_ord = 0, ma_ord = 0, h_max)
 # white-noise hypothesis can be rejected (errors not white-noise)
 ##############################################################################################
-## using ar_11_growth and ar_11 in the following 
+# using ar_11_growth and ar_11 in the following 
 # plotting recursive predictions 
-##############################################################################################
 ##############################################################################################
 source("04_plots.R")
 # plot growth predictions
@@ -156,8 +153,8 @@ head(result_ar_growth)
 eval_for_ar_growth = eval_forc(result_ar_growth[1:(dim(result_ar_growth)[1]-1),], forh) 
 print(eval_for_ar_growth)
 
-################################ 
 # forecasting GDP iteratively (not growth)
+##############################################################################################
 # using ar11 model from above: 
 source("03_benchmark.R") 
 set.seed(501)
@@ -296,10 +293,6 @@ which.min(cv_ntree_plain) # number of trees that minimize OOB sample error: 395
 
 ##############################################################################################
 # trying out estimating GDP using plain rf without making all time series in the dataset stationary
-# 1) not first differencing GDP: completely underestimates
-# 2) using transformed dataframe and GDP: underestimates even further
-# 3) first differencing and plain_X : overestimates and captures almost nothing
-# 4) using plain df and not centered GDP: totally underestimates, but gets bumps etc. 
 ##############################################################################################
 source("02_data_cleaning.R")
 df_plain = clean_2(df_mc)
@@ -323,9 +316,53 @@ gdp_forecast_plot(df_plain$df_trans$GDPC1, gdp_forecast = rf_plain_GDP$plain_for
                          "oos_growth_forecasts_rf_plain", ylab = "GDP",
                          col = "green", CI = FALSE)
 # shows: rf cannot capture trends (i.e. extrapolote) when using NON-STATIONARY ts data
+##############################################################################################
+# estimate first difference gdp 
+##############################################################################################
+# without de-meaning
+# create train (in_sample) and test (out_of_sample) dataframe for GDP growth
+X_in = data_in[-1,-(2:3)] # regressors
+y_in = diff(data_in$GDPC1) # growth rate
+X_out = data[( (dim(data)[1]-h_max + 1):(dim(data)[1]) ), -(2:3)] 
+source("06_rf.R")
+# fit plain rf using OOB (out-of-bag error) as test-error estimate 
+set.seed(123) 
+rf_plain_growth = rf_plain(X = X_in[,-1], 
+                           gdp = y_in,
+                           oos_dataframe = X_out[,-1], # unseen dataset for prediction
+                           mtry = round(sqrt(dim(data_in[,-(1:3)])[2])), 
+                           # number of predictors used is square root of overall predictors available
+                           ntrees = ntree,
+                           Fstdf = FALSE, 
+                           xi = data$GDPC1[data$dates == 2000.00])
+# plot growth forecast of plain rf
+gdp_growth_forecast_plot(data$GDPC1, gdp_forecast = diffinv(rf_plain_growth$plain_forest_pred,
+                                                            xi = data$GDPC1[data$dates == 2000.00]), 
+                         se = diffinv(rf_plain_growth$plain_forest_pred,
+                                      xi = data$GDPC1[data$dates == 2000.00]), 
+                         "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green", 
+                         CI = TRUE)
+
+### estimate first difference gdp with de-meaning
+X_in = data_in[,-(2:3)] # regressors
+y_in = data_in$GDPC1 # growth rate
+X_out = data[( (dim(data)[1]-h_max + 1):(dim(data)[1]) ), -(2:3)] 
+set.seed(123) 
+rf_plain_growth = rf_plain(X = X_in[,-1], 
+                           gdp = y_in,
+                           oos_dataframe = X_out[,-1], # unseen dataset for prediction
+                           mtry = round(sqrt(dim(data_in[,-(1:3)])[2])), 
+                           # number of predictors used is square root of overall predictors available
+                           ntrees = ntree,
+                           Fstdf = TRUE, 
+                           xi = data$GDPC1[data$dates == 2000.00])
+gdp_growth_forecast_plot(data$GDPC1, gdp_forecast = rf_plain_growth$plain_forest_pred, 
+                         se = sd(rf_plain_growth$plain_forest_pred), 
+                         "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green", 
+                         CI = FALSE)
 
 ##############################################################################################
-# estimate rf with rolling window approach: 
+# estimate rf for GDP GROWTH with rolling window approach: 
 # using a-priori hyper parameter model specification
 # and training new forest each iteration
 ##############################################################################################
@@ -333,7 +370,7 @@ source("06_rf.R")
 # using OOB error 
 set.seed(501)
 rf_plain_rolling = rf_plain_rolling(df = data, # exclude data column and GDPC1
-                                    gdp = data$df_trans$GDP_GR,
+                                    gdp = data$GDP_GR,
                                     mtry = (ncol(data) - 3)/3, # predictors used is square root of predictors
                                     ntrees = 500, forh)
 
@@ -350,8 +387,8 @@ for (j in 1:5) {
                            title = paste0("oos_growth_forecasts_rf_plain, h=",j-1), 
                            ylab = "gdp growth", col = "green", 
                            CI = FALSE)
-  print(head(result_ar[,(2*j-1)])) # printing first forecast
-  print(sd(result_ar[,(2*j-1)])) # printing standard error 
+  print(head(result_rf[,(2*j-1)])) # printing first forecast
+  print(sd(result_rf[,(2*j-1)])) # printing standard error 
 }
 # evaluate forecasts
 source("05_functions.R")
@@ -362,8 +399,9 @@ print(eval_for_rf)
 print(eval_for_ar_growth)
 
 # rf better already
-
-##### converting GDP back (not growth) when rolling window approach is used  
+##############################################################################################
+# converting GDP back (not growth) when rolling window approach is used  
+##############################################################################################
 source("05_functions.R")
 result_rf_GDP = feed_in(result = rf_plain_rolling, gdp = data$GDPC1, h_max, forh) # insert GDP level values
 head(result_rf_GDP)
@@ -410,6 +448,43 @@ print(eval_for_rf_GDP_acc)
 # compare to ar11 
 print(eval_for_ar)
 ##############################################################################################
+# Rolling window for GDP using first difference to make GDPC1 stationary 
+##############################################################################################
+source("06_rf.R")
+# using OOB error 
+set.seed(501)
+rf_rolling_GDP = rf_rolling_GDP(df = data, # exclude data column and GDPC1
+                                    gdp = data$GDPC1,
+                                    mtry = (ncol(data) - 3)/3, # predictors used is square root of predictors
+                                    ntrees = 500, forh,
+                                    xi = data$GDPC1[data$dates == 2000.00])
+# feed in true gdp growth values
+source("05_functions.R")
+result_rf_GDPC1 = feed_in(result = rf_rolling_GDP, gdp = data$GDPC1, h_max, forh)
+head(result_rf_GDPC1)
+# plotting the different forecasts
+source("04_plots.R")
+par(mfrow = c(1, 1))
+for (j in 1:5) {
+  gdp_growth_forecast_plot(data$GDPC1, gdp_forecast = result_rf_GDPC1[,(2*j-1)], 
+                           se = sd(result_rf_GDPC1[,(2*j-1)]), 
+                           title = paste0("oos_GDP_forecasts_rf_plain, h=",j-1), 
+                           ylab = "GDP", col = "green", 
+                           CI = FALSE)
+  print(head(result_rf_GDPC1[,(2*j-1)])) # printing first forecast
+  print(sd(result_rf_GDPC1[,(2*j-1)])) # printing standard error 
+}
+# evaluate forecasts
+source("05_functions.R")
+eval_for_rf_GDPC1 = eval_forc(result_rf_GDPC1[1:(dim(result_rf)[1]-1),], forh) 
+# using all but last row (since no comparable data)
+print(eval_for_rf_GDPC1)
+# compare to ar11
+print(eval_for_ar)
+# rf is totally overestimated when using first difference !
+##############################################################################################
+
+##############################################################################################
 # hyper parameter tuning: find out optimal hyper parameters for each year in the forecasting window
 # these values respectively are then used again in the rolling-window forecasting scheme 
 # for comparison reasons: the oob error and cv error are used
@@ -442,7 +517,7 @@ hyper_oob_final = rf_ranger_oob(df = data, mtry_grid, samp_size_grid, node_size_
 
 saveRDS(hyper_oob_final, file = "output/hyperparams_oob.rda") # save hyper_oob_final 
 end_time = Sys.time()
-print(paste("estimation time", end_time-start_time))
+print(paste("estimation time: ", end_time-start_time))
 
 # read hyperparameters
 hyper_oob_final = readRDS("output/hyperparams_oob.rda")
@@ -524,4 +599,6 @@ hyperset_prewindow = rf_hyperpara_prewindow[which.min(rf_hyperpara_prewindow[,1]
 ### to do:
 # delete some View()
 # all with qqplot 
+# comparing forecasting errors when not including corona 
+# using different filter for gdp (hodrick prescott..)
 # again forecasting with rf: now using also the quartely data from mccracken (if not the same??)

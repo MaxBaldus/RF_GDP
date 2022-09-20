@@ -157,7 +157,7 @@ invert_growth_err_acc = function(df, y_0){
 ##############################################################################################
 hp = function(gdp){
   
-  # applying HP filter to remove trend and cyclical component using the HP filter
+  # applying HP filter to remove trend and cyclical component 
   # with lambda = 1600 (for quartely data)
   hp = hpfilter(gdp, freq = 1600)
   hp_res = gdp - hp$trend - hp$cycle # subtracting all components for original time series

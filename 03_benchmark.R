@@ -145,8 +145,8 @@ ar_rolling_recursive = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
   N = length(gdp) # length of time series
   Nin = N - h_max # length of in sample observations
 
-  print(paste("T = ", N)) # 251 observations
-  print(paste("T_in = ", Nin)) # 163 observations
+  print(paste("N = ", N)) # 251 observations
+  print(paste("first N_in = ", Nin)) # 163 observations
 
   # initializing
   result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh))
@@ -155,10 +155,11 @@ ar_rolling_recursive = function(gdp, ar_ord, ma_ord, h_max, forh, Fstdf, xi){
 
   # loop over each quarter from 2000 up to 2022
   for (i in Nin:(N)) {
-    # estimate arma model again using new observation each time (but same coefficients)
-    # data$df_trans$GDPC1[163] =  0.01629431 <=> 1999-12-01
-    # all values up to 1999-12-01 are used in the first loop to estimate model
-    # e.g i = Nin = 163 => use all gdp values up to 2000-03-01 (1st quarter are used)
+    
+    # estimate arma model again using new observation each time 
+    # data$GDPC1[163] =  0.01629431 <=> 1999.75
+    # all values up to last quarter of 1999 are used in the first loop to estimate model
+    # e.g i = Nin = 163 => use all gdp values up to 2000Q1 (1st quarter are used)
     arma_fit = arima(gdp[1:i], order = c(ar_ord,0,ma_ord), include.mean = FALSE)
     # last value to be used to estimate model: 2021-12-01
 

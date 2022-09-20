@@ -7,7 +7,6 @@ rf_plain = function(X, gdp , oos_dataframe, ntrees, mtry, Fstdf, xi){
     gdp = gdp_ct 
     # loosing one observation: hence also need to delete first observation in regressor data
     X = X[-1,]
-    print(gdp)
   }
   # train random forest on in_sample_dataframe
   rand_forest = randomForest::randomForest(x = X,
@@ -46,7 +45,7 @@ rf_plain_valid = function(X_train, y_train, X_test, y_test, ntrees, mtry){
   return(rand_forest)
 }
 ##############################################################################################
-# forecasting rf using rolling window with a-priori specification
+# forecasting GDP GROWTH with rf using rolling window with a-priori specification
 # i.e. refitting rf, but always with the same hyper parameters
 ##############################################################################################
 rf_plain_rolling = function(df, gdp, ntrees, mtry, forh) {
@@ -68,8 +67,8 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, forh) {
     for (i in Nin:(N-h)) {
       # estimate rf again each quarter using new model (but same hyper parameters)
       # for each iteration: have a new dataframe
-      X_train = X[1:i,]
-      y_train = y[1:i,]
+      X_train = X[1:(i-h),]
+      y_train = y[1:(i-h),]
       # train rf using values up to current window 
       rand_forest = ranger::ranger(x = X_train[,-1],
                                    y = y_train[,-1],
@@ -90,6 +89,65 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, forh) {
   
   return(result)
 }
+##############################################################################################
+# forecasting GDP (not growth) with rf using rolling window with a-priori specification
+##############################################################################################
+rf_rolling_GDP = function(df, gdp, ntrees, mtry, forh, xi) {
+  # first differencing
+  gdp_d = diff(gdp) # 1st differencing ts
+  gdp_ct = gdp_d - mean(gdp_d) # centering ts
+  # loosing one observation: hence also need to delete first observation in regressor data
+  df = df[-1,]
+  df$GDPC1 = gdp_d # use differencend and centered gdp ts in the following
+  
+  N = length(df[,2]) # length of time series
+  Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
+  print(paste0("N=", N))
+  print(paste0("Nin=", Nin))
+  
+  # initializing
+  result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
+  
+  # loop over each quarter from 2000 up to 2022,
+  # doing a direct oos forecast for each horizon h
+  col_counter = 1
+  for (h in c(0, forh)) {
+    print(paste0("h=", h))
+    X = df[1:(nrow(df)-h),-3]  # y_t+h = f(y_t,X_t), excluding GDPCR
+    y = cbind(df[(1+h):nrow(df),1] ,gdp_d[(1+h):nrow(df)]) # GDP target 
+    for (i in Nin:(N-h)) {
+      # estimate rf again each quarter using new model (but same hyper parameters)
+      # for each iteration: have a new dataframe
+      X_train = X[1:(i-h),]
+      y_train = y[1:(i-h),]
+      # train rf using values up to current window 
+      rand_forest = ranger::ranger(x = X_train[,-1],
+                                   y = y_train[,-1],
+                                   mtry = mtry,
+                                   importance = "none",
+                                   num.trees = ntrees)
+      # compute fitted value (of current Nin) & save
+      p = rand_forest$predictions[length(rand_forest$predictions)] 
+      result[i-Nin+1,col_counter] = p
+      
+    }
+    col_counter = col_counter + 2
+    print(result)
+  }
+  # compute gdp values back (not differenced ts)
+  for (i in (seq(1, ncol(result), 2))) { # for each 2nd column: compute inverse of diff. operation
+    result[,i] =  diffinv(result[,i] + mean(gdp_d), xi = xi)[-1]
+    # xi is the starting value of the differenced series (gdp) + adding mean again (non_centered)
+  }
+  
+  colnames(result) =  c("gdp forecast h=0", "gdp",
+                        "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
+                        "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
+  
+  return(result)
+}
+##############################################################################################
+
 
 ##############################################################################################
 # old direct forecasting regime
@@ -239,13 +297,13 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, h
   print(paste0("Nin=", Nin))
   
   Nin_year = seq(from = Nin+4, to = N, by = 4) # starting at first quarter of each new year, from 1999 up to 2022
-  print(paste0("Nin_year=", Nin_year))
+  print(paste0("Nin_year =", Nin_year))
   
   counter_year = 1
   # always append next 4 quarters and compute oob error for each new year (for each hyper parameter combination)
   for (year in Nin_year) {
     current_df = df[1:(year-1),]
-    
+    print(paste0("data up to: ", df[(year-1),]))
     # initialize accuracy matrix for current year
     rf_acc = data.frame(matrix(ncol = 4, nrow = 0)) 
     colnames(rf_acc) = c("Error", "mtry","samp_size", "node_size")
@@ -272,12 +330,10 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, h
         }
       }
     }
-    browser()
+
     # extract optimal hyper parameter for the current year and save it into the list
     hyper_para_list[[counter_year]] = rf_acc[which.min(rf_acc[,1]),]
-    # View(hyper_para_list)
     print(hyper_para_list)
-    # browser()
     counter_year = counter_year + 1
   }
   return(hyper_para_list)
