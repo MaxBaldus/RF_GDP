@@ -10,7 +10,7 @@ install_and_load = function(a){
     install.packages("ranger")
     install.packages("readxl")
     install.packages("tidyverse")
-    #install.packages("mFilter")
+    install.packages("mFilter")
     
     # for using github:
     #install.packages("usethis")
@@ -29,6 +29,7 @@ install_and_load = function(a){
   library(ranger)
   library(readxl)
   library(tidyverse)
+  library(mFilter)
   
   #library(mFilter)
   # github

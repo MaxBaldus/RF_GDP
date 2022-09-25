@@ -29,6 +29,11 @@ df = read_excel("input/SW_Updated_2022.xlsx", sheet = "Monthly Data")
 gdp = read_excel("input/SW_Updated_2022.xlsx", sheet = "US GDP")
 source("02_data_cleaning.R")
 data = create_df(df, gdp)
+# updated df 16.09.'22
+df_2 = read_excel("input/SW_Updated_2022_2.xlsx", sheet = "Monthly Data")
+# if p_value of adf test = 0.01, it is actually smaller 
+# (Warning: p-value smaller than printed p-value), which is surpressed
+# use suppressWarnings()
 View(data)
 
 ##############################################################################################
@@ -360,7 +365,7 @@ gdp_growth_forecast_plot(data$GDPC1, gdp_forecast = rf_plain_growth$plain_forest
                          se = sd(rf_plain_growth$plain_forest_pred), 
                          "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green", 
                          CI = FALSE)
-
+# not really a difference from eye-balling
 ##############################################################################################
 # estimate rf for GDP GROWTH with rolling window approach: 
 # using a-priori hyper parameter model specification
@@ -395,6 +400,17 @@ source("05_functions.R")
 eval_for_rf = eval_forc(result_rf[1:(dim(result_rf)[1]-1),], forh) 
 # using all but last row (since no comparable data)
 print(eval_for_rf)
+# $me
+# [1] 0.0007788418 0.0007276938 0.0012682047 0.0009999453 0.0013073248
+# 
+# $mse
+# [1] 0.0001095273 0.0002904196 0.0002377018 0.0002294070 0.0002231057
+# 
+# $mae
+# [1] 0.002965371 0.006724274 0.006798541 0.006835114 0.006910838
+# 
+# $rmse
+# [1] 0.01046553 0.01704170 0.01541758 0.01514619 0.01493672
 # compare to ar11
 print(eval_for_ar_growth)
 
@@ -422,6 +438,17 @@ for (j in 1:5) {
 # forecast evaluation
 eval_for_rf_GDP = eval_forc(result_rf_GDP[1:(dim(result_rf_GDP)[1]-1),], forh) 
 print(eval_for_rf_GDP)
+# $me
+# [1]   91.35457   86.03237   18.95288  -62.13409 -127.54753
+# 
+# $mse
+# [1]  18569.87  18802.28  75378.10 114982.48 153434.54
+# 
+# $mae
+# [1] 112.6587 109.0633 113.7162 178.9970 253.8699
+# 
+# $rmse
+# [1] 136.2713 137.1214 274.5507 339.0907 391.7072
 # compare to ar11 
 print(eval_for_ar)
 
@@ -482,8 +509,33 @@ print(eval_for_rf_GDPC1)
 # compare to ar11
 print(eval_for_ar)
 
+### only differencing (not centering)
+# $me
+# [1] 145.8778 132.8890 371.4914 116.6855 157.7792
+# 
+# $mse
+# [1]  95672.04 112589.51 254682.73 101806.82 125954.06
+# 
+# $mae
+# [1] 220.4982 230.4682 387.3811 215.9425 251.0537
+# 
+# $rmse
+# [1] 309.3090 335.5436 504.6610 319.0718 354.9001
+### also centering
+# $me
+# [1] 121.7596 100.3618 299.6852 123.2911 151.2846
+# 
+# $mse
+# [1]  82679.85  89207.14 194493.41 112883.39 126508.68
+# 
+# $mae
+# [1] 198.7364 198.5867 328.5712 233.5597 253.7029
+# 
+# $rmse
+# [1] 287.5410 298.6756 441.0141 335.9812 355.6806
+
 ##############################################################################################
-# Rolling window for GDP using first Hodrick Prescott Filte
+# Rolling window for GDP using first Hodrick Prescott Filter
 ##############################################################################################
 source("05_functions.R")
 test = hp(data$GDPC1)
@@ -495,7 +547,7 @@ rf_rolling_GDP_hp = rf_rolling_hp(df = data, # exclude data column and GDPC1
                                 ntrees = 500, forh,
                                 hp = test$hp)
 # forecasted values is e.g. 1.849404e-13, meaning when adding trend and cycle back, yielding
-# same values as gdp ... 
+# same values as gdp, because filter too strong ("filters everything out") 
 
 ##############################################################################################
 # hyper parameter tuning: find out optimal hyper parameters for each year in the forecasting window

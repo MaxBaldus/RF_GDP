@@ -137,7 +137,7 @@ clean_2 = function(df){
 
 
 ##############################################################################################
-# df by Carstensen
+# df by Mr. Carstensen
 ##############################################################################################
 create_df = function(df, gdp){
   data1 = as.data.frame(matrix(0, nrow = nrow(df)-10, ncol = ncol(df))) # initialize empty matrix
@@ -149,10 +149,10 @@ create_df = function(df, gdp){
   colnames(data2) = as.vector(as.matrix(df)[4,-1])
   data1 = cbind(data1[,1], data2)
   names(data1)[names(data1) == "data1[, 1]"] = "dates"
-  # aggregate monthly data to quartely data using mean 
+  # aggregate monthly data to quarterly data using mean 
   data3 = aggregate(data1[,-1], list(as.yearqtr(data1$dates)), mean)
   # stationary regressors
-  data4 = apply(data3[,-1], 2, diff) # first difference, loosing first observation
+  data4 = apply(data3[,-1], 2, diff) # computing the first difference, loosing first observation
   data4 = as.matrix(cbind(data3[-1,1], data4))
   # gdp
   gdp_data = as.data.frame(gdp[-(1:6),])
@@ -167,5 +167,80 @@ create_df = function(df, gdp){
   data = as.data.frame(data[1:which(data[,1] == 2021.75),])
   return(data)
 }
-
-# function for making each regressor stationary 
+##############################################################################################
+# groups:
+# Index: 1:20 = REAL ACTIVITY ; 21:47 = EMPLOYMENT ; 48:60 = HOUSING ; 
+# 61:75 = INTEREST RATE ; 76:104 = INFLATION ; 105:113 = FINANCIAL MARKET ;
+# 114:133 = MONEY ; 134:144 = CREDIT ; 145 = OILPRICE ; 146 = FFR
+create_df_2 = function(df, gdp){
+  data1 = as.data.frame(matrix(0, nrow = nrow(df)-10, ncol = ncol(df))) # initialize empty matrix
+  data1[,1] = openxlsx::convertToDate(as.matrix(df[-(1:10),1])) # date column
+  data1[,-1] = apply(as.matrix(df)[-(1:10),-1], 2, as.numeric) # convert characters to numbers
+  # print variables containing NA's
+  id = c()
+  for (i in (2:ncol(data1))) {
+    # browser()
+    if(is.na(data1[1,i]) == TRUE){
+      append(id, i, after = length(id))
+      print(id)
+    }
+  }
+  print(paste0(length(id), " variables contain NA's"))
+  # apply(as.matrix(df)[-(1:10),-1], 2, function(x){if(anyNA(x)==TRUE){}}) # convert characters to numbers)
+  data1[,-1] = apply(data1[,-1], 2, function(x) {ifelse(is.na(x), median(x, na.rm = TRUE), x)}) # replace NA's with median
+  # column names
+  data2 = data1[,-1] # df without date column
+  colnames(data2) = as.vector(as.matrix(df)[4,-1])
+  data1 = cbind(data1[,1], data2)
+  names(data1)[names(data1) == "data1[, 1]"] = "dates"
+  # aggregate monthly data to quarterly data using mean 
+  data3 = aggregate(data1[,-1], list(as.yearqtr(data1$dates)), mean)
+  # stationary regressors
+  data4 = apply(data3[,-1], 2, diff) # computing the first difference, loosing first observation
+  # check each ts with augmented df test, if 1st diff. filter yielded stationarity
+  data5 = data4
+  l = apply(data4, 2, tseries::adf.test)
+  ind = c()
+  for (i in (1:length(l))) {
+    current_ts = l[i]
+    # if stationarity not obtained (i.e. p-value > 0.05 <=> H0 not rejected), 
+    # first difference filter is applied again 
+    p_value = as.numeric(current_ts[[1]]$p.value) 
+    if (p_value >= 0.05) {
+      data5[-1,i] = diff(data4[,i])
+      ind = append(ind, i, after = length(ind))
+    } 
+  }
+  # print(paste0(colnames(data4)[ind], "were not stationary"))
+  print(paste0(length(ind), " series were not stationary after 1st diff. filter"))
+  data5 = data5[-1,] # loosing 2nd observation due two 2 filters
+  # test stationarity again
+  l = apply(data5, 2, tseries::adf.test)
+  for (i in (1:length(l))) {
+    current_ts = l[i]
+    p_value = as.numeric(current_ts[[1]]$p.value)
+    if (p_value >= 0.05) {
+      print(paste0(colnames(data4)[i], "  still not stationary after 2st diff. filter"))
+    } 
+  }
+  print("using returns and squared returns for the three")
+  # ts which are still not stationary using transformation suggested by mccracken
+  data5[, "RPI"] = diff(log(data3[-1,"RPI"])) # log differences (growth rate or returns)
+  data5[, "CUSR0000SAS"] = (diff(log(data3[-1, "CUSR0000SAS"])))^2 # squared returns 
+  data5[, "NONREVSL"] = diff(log(data3[-1,"NONREVSL"])) # log differences (growth rate or returns)
+  # include date column
+  data5 = as.matrix(cbind(data3[-c(1,2),1], data5))
+  # gdp
+  gdp_data = as.data.frame(gdp[-(1:6),])
+  gdp_data$num = as.numeric(gdp_data[,2])
+  GDP_GR = diff(log(gdp_data$num)) # compute growth rate
+  gdp_data1 = cbind(gdp_data[-1,],GDP_GR)
+  # combine dataframes
+  gdp_data2 = gdp_data1[which(gdp_data1$GDPC1=="04.01.1959"):which(gdp_data1$GDPC1=="04.01.2022"),c(1,3,4)]
+  data = cbind(data5[,1], gdp_data2[-1,2:3], data5[,-1])
+  # rename some columns 
+  names(data)[names(data) == "data5[, 1]"] = "dates"
+  names(data)[names(data) == "num"] = "GDPC1"
+  data = as.data.frame(data[1:which(data[,1] == 2021.75),])
+  return(data)
+}
