@@ -8,7 +8,9 @@ install_and_load = function(a){
     install.packages("forecast")
     install.packages("ggplot2")
     install.packages("ranger")
-    #install.packages("mFilter")
+    install.packages("readxl")
+    install.packages("tidyverse")
+    install.packages("mFilter")
     
     # for using github:
     #install.packages("usethis")
@@ -25,6 +27,9 @@ install_and_load = function(a){
   library(forecast)
   library(ggplot2)
   library(ranger)
+  library(readxl)
+  library(tidyverse)
+  library(mFilter)
   
   #library(mFilter)
   # github

@@ -6,7 +6,7 @@ feed_in = function(result, gdp, h_max, forh){
   
   # gdp h=0: 
   result[1:((N-Nin)),2] = gdp[(Nin+1):N]
-  
+
   # gdp h=1: 
   result[1:((N-Nin)),4] = gdp[(Nin+1):N]
   # 4th column: insert gdp values for h = 1
@@ -32,10 +32,11 @@ feed_in = function(result, gdp, h_max, forh){
   
   return(result)
 }
-
+##############################################################################################
 # forecast evaluations
+##############################################################################################
 eval_forc = function(result, forh){
-  # excluding h = 0
+  # excluding nowcast h = 0
   result_1 = result[,-c(1,2)]
   
   num_hor = length(forh) # number of forecasts horizons (= 4, only considering h = 1,2,3,4 first)
@@ -44,6 +45,7 @@ eval_forc = function(result, forh){
   me = rep(NA, num_hor + 1) # initialize mean error
   mse = rep(NA,num_hor + 1) # initialize mse (mean squared error)
   mae = rep(NA,num_hor + 1) # initialize mae (mean absolute error)
+  rmse = rep(NA,num_hor + 1) # initialize rmse (root mean squared error)
   
   j = 1
   while (j <= num_hor) {
@@ -59,48 +61,113 @@ eval_forc = function(result, forh){
     me[j + 1] = (sum(result_2[,1] - result_2[,2]))/dim(result_2)[1] # compute me
     mse[j + 1] = (sum((result_2[,1] - result_2[,2])^2))/dim(result_2)[1] # compute mse
     mae[j+ 1] = (sum(abs(result_2[,1] - result_2[,2])))/dim(result_2)[1] # compute mae
+    rmse[j+ 1] = sqrt( (sum((result_2[,1] - result_2[,2])^2))/dim(result_2)[1]) # compute rmse
+    
     j = j + 1; 
   }
   # compute statistics for h = 0 (first entry in vector)
-  me[1] = (sum(result[,1] - result[,2]))/dim(result)[1] 
+  me[1] = (sum(result[,1] - result[,2]))/dim(result)[1] # compute mean error 
   mse[1] = (sum((result[,1] - result[,2])^2))/dim(result)[1] # compute mse
   mae[1] = (sum(abs(result[,1] - result[,2])))/dim(result)[1] # compute mae
+  rmse[1] = sqrt( (sum((result[,1] - result[,2])^2))/dim(result)[1]) # compute mae
   
-  return(list(me = me, mse=mse, mae =mae)) 
+  # get min values respectively
+  min_me = which.min(me) # h = 4 forecast has min me value ??
+  min_mse = which.min(mse) # h = 0 has min mse value
+  min_mae = which.min(mae) #  h = 0 has min mae value
+  min_rmse = which.min(rmse) #  h = 0 has min mae value
+  
+  
+  return(list(me = me, mse=mse, mae =mae, rmse = rmse,
+              smins = list(min_me = min_me,
+                          min_mse = min_mse, min_mae = min_mae, min_rmse = min_rmse)))
 }
-
+##############################################################################################
 # converting gdp growth rate back to GDP levels
+##############################################################################################
 invert_growth = function(df, y_0){
-  df_inv = matrix(0, nrow = nrow(df), ncol = ncol(df)) # initialize empty matrix
+  df_inv = matrix(0, nrow = nrow(df) + 1, ncol = ncol(df)) # initialize empty matrix
+  # store respective base value 1999Q4 as the first entry
   for (j in 1:5) {
-    df_inv[,(2*j-1)] = exp(cumsum(df[,(2*j-1)])) * y_0 # compute levels again 
+    df_inv[1,(2*j-1)] = y_0
+  }
+  # df_inv[1,1] = y_0 # h = 0 and h=1 first entry is y_0
+  # df_inv[1,3] = y_0 # h = 0 and h=1 first entry is y_0
+  # for (j in 3:5) {
+  #   df_inv[1,(2*j-1)] = df[1,(2*j-2)] # always save gdp value of period before 
+  # }
+  # attach exp(forecasts) as rows below base values respectively
+  for (j in 1:5) {
+    # browser()
+    df_inv[-1,(2*j-1)] = exp(df[,(2*j-1)]) # computing exp. transformation of growth forecasts 
+  }
+  #always compute percentage change from the TRUE GDP value of the period before 
+  #first period
+  for (j in 1:5) {
+    df_inv[2,(2*j-1)] = df_inv[1,(2*j-1)] * df_inv[2,(2*j-1)]
+  }
+  # values after
+  for (j in 1:5) {
+    for (i in 3:(nrow(df)+1)) {
+      # browser()
+      df_inv[i,(2*j-1)] = df[i-1,2] * df_inv[i,(2*j-1)] # df[i-1,(2*j)]
+    }
   }
   # insert gdp values again (2nd, 4th, 6th column etc.)
-  df_inv[,seq(2,ncol(df),by = 2)] = df[,seq(2,ncol(df),by = 2)]  
+  df_inv[-1,seq(2,ncol(df),by = 2)] = df[,seq(2,ncol(df),by = 2)]
+  print(df_inv)
+  return(df_inv[-1,]) # dont return first row (only respective base value)
+}
+
+##############################################################################################
+# converting gdp growth rate back to GDP levels: only 1 base value
+##############################################################################################
+invert_growth_err_acc = function(df, y_0){
+  df_inv = matrix(0, nrow = nrow(df), ncol = ncol(df)) # initialize empty matrix
+  for (j in 1:5) {
+    df_inv[,(2*j-1)] = exp(cumsum(df[,(2*j-1)])) * y_0 # compute levels again from forecasts (h=0,...,4)
+  }
+  # long-version
+  # # store respective base values as the first entry, always using gdp value of period before
+  # df_inv[1,1] = y_0 # h = 0 and h=1 first entry is y_0
+  # df_inv[1,3] = y_0 # h = 0 and h=1 first entry is y_0
+  # for (j in 3:5) {
+  #   df_inv[1,(2*j-1)] = df[1,(2*j-2)] # always save gdp value of period before 
+  # }
+  # # attach exp(forecasts) as rows below base values respectively
+  # for (j in 1:5) {
+  #   # browser()
+  #   df_inv[-1,(2*j-1)] = exp(df[,(2*j-1)]) # computing exp. transformation of growth forecasts 
+  # }
+  # # always compute percentage change onto (estimated) base value from period before
+  # for (j in 1:5) {
+  #   for (i in 2:(nrow(df)+1)) {
+  #     # browser()
+  #     df_inv[i,(2*j-1)] = df_inv[i-1,(2*j-1)] * df_inv[i,(2*j-1)]
+  #   }
+  # }
+  # ERROR ACCUMULATES
+  # insert gdp values again (2nd, 4th, 6th column etc.)
+  df_inv[,seq(2,ncol(df),by = 2)] = df[,seq(2,ncol(df),by = 2)]
   return(df_inv)
 }
 
-
 ##############################################################################################
 # Hodrick-Prescott Filter 
+##############################################################################################
 hp = function(gdp){
-  
-  # applying HP filter to remove trend and cyclical component using the HP filter
+  gdp_ts = ts(gdp)
+  # applying HP filter to remove trend and cyclical component 
   # with lambda = 1600 (for quartely data)
-  hp = hpfilter(gdp, freq = 1600)
-  hp_res = gdp - hp$trend - hp$cycle # subtracting all components for original time series
+  hp = hpfilter(gdp_ts, freq = 1600)
+  hp_res = gdp_ts - hp$trend - hp$cycle # subtracting all components for original time series
   
-  ts.plot(gdp, hp$trend, hp$cycle, hp_res,  xlab="Time", ylab="GDP", type="l", col = "blue", main = "HP Filter GDP") 
+  ts.plot(gdp, hp$trend, hp$cycle, hp_res,  xlab="Time", ylab="GDP", type="l", 
+          col = c("blue", "red", "green", "black"), main = "HP Filter GDP") 
   legend("bottomright", legend = c("gdp", "Trend component", "Cyclical component", "residuals"), 
          col = c("blue", "red", "green", "black"), lty = 1, cex = 0.5)
   # "don't use HP filter for forecasting"
+  return(list("hp"= hp, "residuals" = hp_res))
 }
-
-# helper:
-# see which variables of the dataframe are in the fred description
-
-# varlist_df %in% varlist_fred$fred # returns a boolean TRUE or FALSE value depending on whether the element is found or not
-# which(varlist_df %in% varlist_fred$fred == FALSE) # gives the indices, that are false
-# varlist_df[c(which(varlist_df %in% varlist_fred$fred == FALSE))]
 
 
