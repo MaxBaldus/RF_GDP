@@ -193,7 +193,6 @@ rf_rolling_hp = function(df, gdp, ntrees, mtry, forh, hp) {
     col_counter = col_counter + 2
     print(result)
   }
-  browser()
   # compute level GDP values back by adding extract values again
   for (i in (seq(1, ncol(result), 2))) { # for each 2nd column: compute inverse of diff. operation
     result[,i] =  result[,i] + 
@@ -357,7 +356,6 @@ rf_hyper_test_set = function(df, mtry_grid, samp_size_grid, node_size_grid, ntre
         }
       }
     }
-    View(rf_acc)
     # extract optimal hyper parameter for the current year and save it into the list
     hyper_para_list[[counter_year]] = rf_acc[which.min(rf_acc[,1]),]
     print(hyper_para_list)

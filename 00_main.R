@@ -703,7 +703,7 @@ Sys.time()
 start_time = Sys.time()
 # for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
 hyper_oob_final_growth = rf_ranger_oob(df = data, mtry_grid, samp_size_grid, node_size_grid, 
-                                500, hyper_para_list = hyper_oob_final)
+                                500, hyper_para_list = hyper_oob_final_growth)
 
 saveRDS(hyper_oob_final_growth, file = "output/hyperparams_oob_growth.rda") # save hyper_oob_final 
 end_time = Sys.time()
@@ -718,7 +718,7 @@ Sys.time()
 start_time = Sys.time()
 # for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
 hyper_oob_final_level = rf_ranger_oob_level(df = data, mtry_grid, samp_size_grid, node_size_grid, 
-                                       500, hyper_para_list = hyper_oob_final,
+                                       500, hyper_para_list = hyper_oob_final_level,
                                        gdp = data$GDPC1)
 
 saveRDS(hyper_oob_final_level, file = "output/hyperparams_oob_level.rda") # save hyper_oob_final 
@@ -759,7 +759,7 @@ set.seed(123)
 Sys.time()
 start_time = Sys.time()
 hyper_test_final_level = rf_hyper_test_set_level(df = data, mtry_grid, samp_size_grid, node_size_grid, 500, 
-                                     hyper_para_list = hyper_test_final, gdp = data$GDPC1)
+                                     hyper_para_list = hyper_test_final_level, gdp = data$GDPC1)
 saveRDS(hyper_test_final_level, file = "output/hyper_test_final_level.rda")
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))

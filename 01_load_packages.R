@@ -9,6 +9,7 @@ install_and_load = function(a){
     install.packages("ggplot2")
     install.packages("ranger")
     install.packages("readxl")
+    install.packages("openxlsx")
     install.packages("tidyverse")
     install.packages("mFilter")
     
