@@ -22,18 +22,20 @@ install_and_load(a = a)
 df_mc = read.csv("input/current.csv") # load the spreadsheet data 
 source("02_data_cleaning.R") # load data-cleaning file
 inspect_mc(df_mc)
-data_mc = clean_mc(df_mc) # list with all relevant components extracted
+data_mc = suppressWarnings(clean_mc(df_mc))  # list with all relevant components extracted
 
 # df by Carstensen 
 df = read_excel("input/SW_Updated_2022.xlsx", sheet = "Monthly Data")
 gdp = read_excel("input/SW_Updated_2022.xlsx", sheet = "US GDP")
 source("02_data_cleaning.R")
 data = create_df(df, gdp)
+
 # updated df 16.09.'22
 df_2 = read_excel("input/SW_Updated_2022_2.xlsx", sheet = "Monthly Data")
+source("02_data_cleaning.R")
+data = suppressWarnings(create_df_2(df_2, gdp)) 
 # if p_value of adf test = 0.01, it is actually smaller 
-# (Warning: p-value smaller than printed p-value), which is surpressed
-# use suppressWarnings()
+# the raised Warning: p-value smaller than printed p-value, is surpressed
 View(data)
 
 ##############################################################################################
@@ -60,7 +62,7 @@ gdp_plot(data_in$GDP_GR, title = "GDP growth in-sample", ylab = "gdp growth")
 # analyzing parameter combinations and finding out best coefficients to use in rolling window approach
 ##############################################################################################
 source("03_benchmark.R") 
-
+set.seed(501)
 # using entire data series
 ar_full = ar(data$GDPC1, 1,1, h_max)
 # Dickey Fuller test for the 1st difference: p = 0.01 < 0.05 => can reject H0 (ts stationary)
@@ -76,67 +78,85 @@ ar_full = ar(data$GDPC1, 1,1, h_max)
 ar_21 = ar(data_in$GDPC1,2,1, h_max)
 # acf yields ma of order 2, pacf indicating long memory?
 # using ar(2,1) -> two insignificant coefficients, only ar1 significant 
-# residuals seems to be white noise (qq-plot): confirmed by Ljung Box pierce test
+# residuals seems to be white noise (qq-plot): confirmed by Ljung Box pierce test (df = 4)
 # rss      aic     aicc      bic
-# 472519.7 8.008894 8.010059 8.065834
+# [1,] 471103.4 8.012274 8.013453 8.069451
 
 # now using ma order of 3 and ar order of 1
 ar_13 = ar(data_in$GDPC1, ar_ord = 1, ma_ord = 3 , h_max)
 # ar1 and ma1 only significant parameter value
-#  rss      aic     aicc      bic
-# 471643.7 8.019309 8.021184 8.095229
+# rss      aic     aicc      bic
+# [1,] 470301.8 8.022916 8.024816 8.099153
 # slightly higher information criteria (worse than ar_21)
 
 # trying ar_11
 ar_11 = ar(data_in$GDPC1, ar_ord = 1, ma_ord = 1 , h_max)
-# both parameters significant now: information criteria about the same
-# rss      aic     aicc      bic
-# 472803.1 7.997224 7.997841 8.035184
-# p-value mostly larger than 0.01 => residuals seem to be white noise
+# both parameters significant now: information criteria about the same (slightly lower)
+# rss      aic     aicc     bic
+# [1,] 471604.8 8.000992 8.001617 8.03911
+# for df=4: p-value of chi-square: 0.71, value slightly larger => H0: iid ~ wn
+# (H0: data (residuals) iid not rejected)
 
 # fitting a random walk
 rw = ar(data_in$GDPC1, ar_ord = 0, ma_ord = 0 , h_max)
+# rss      aic     aicc      bic
+# [1,] 589542.6 8.199506 8.199506 8.199506
+# error not white noise
 
 # estimating and forecasting GDP growth with linear model
 # model selection applied to GDP growth
 ar_22_growth = ar_growth(data_in$GDP_GR, ar_ord = 2, ma_ord = 2, h_max)
 # pacf suggests ar order of 2, acf suggests ma order of 2
 # but ma2 coefficient not significant 
-# errors seem to be white noise
+# errors seem not to be white noise: H0: errors ~ iid mostly rejected 
 # rss       aic      aicc       bic
-# 0.0119434 -9.472247 -9.470371 -9.396326
+# [1,] 0.01202231 -9.459205 -9.457306 -9.382968
 
-# fitting ar_21_model
-ar_21_growth = ar_growth(data_in$GDP_GR, ar_ord = 2, ma_ord = 1, h_max)
-# now all parameter very significant. 
-# erros on the edge on being white noise or non-white noise
-# information criteria a little bit higher (slightly)
-# rss       aic      aicc       bic
-# 0.01211922 -9.469903 -9.468738 -9.412963
+# # fitting ar_21_model  -- not working???: non-stationary AR part from CSS ???
+# ar_21_growth = ar_growth(data_in$GDP_GR, ar_ord = 2, ma_ord = 1, h_max)
+# # now all parameter very significant. 
+# # erros on the edge on being white noise or non-white noise
+# # information criteria a little bit higher (slightly)
+# # rss       aic      aicc       bic
+# # 0.01211922 -9.469903 -9.468738 -9.412963
 
 ar_11_growth = ar_growth(data_in$GDP_GR, ar_ord = 1, ma_ord = 1, h_max)
 # both parameters significant
 # slightly best information criteria (lowest)
 # rss       aic      aicc       bic
-# 0.01280727 -9.426953 -9.426336 -9.388993
-# errors slightly white-noise
+# [1,] 0.01240076 -9.452902 -9.452277 -9.414784
+# errors not white-noise, H0 rejected in most cases
+
+ar_33_growth = ar_growth(data_in$GDP_GR, ar_ord = 3, ma_ord = 3, h_max)
+# all parameters significant
+# rss       aic     aicc       bic
+# [1,] 0.0111721 -9.507858 -9.50401 -9.393502
+# penalized information criteria smaller than ar_11 & ar_22
+# errors white noise for lag = 6
+
+ar_32_growth = ar_growth(data_in$GDP_GR, ar_ord = 3, ma_ord = 2, h_max)
+# ma1 coefficients not significant
+# rss       aic      aicc       bic
+# [1,] 0.01129182 -9.509545 -9.506757 -9.414249
+# error (df = 4) slightly white noise (df = 4)
 
 rw_growth = ar_growth(data_in$GDP_GR, ar_ord = 0, ma_ord = 0, h_max)
 # white-noise hypothesis can be rejected (errors not white-noise)
 ##############################################################################################
-# using ar_11_growth and ar_11 in the following 
+# using ar_33_growth and ar_11 in the following 
 # plotting recursive predictions 
 ##############################################################################################
 source("04_plots.R")
 # plot growth predictions
-gdp_growth_forecast_plot(data_in$GDP_GR, gdp_forecast = ar_11_growth$predicitons$pred, se = ar_11_growth$predicitons$se, 
+gdp_growth_forecast_plot(data$GDP_GR, gdp_forecast = ar_33_growth$predicitons$pred, se = ar_11_growth$predicitons$se, 
                          "oos_growth_forecasts_ar11", ylab = "gdp growth", col = "blue", CI = TRUE)
 # plot GDP predictions
-gdp_forecast_plot(data_in$GDPC1, ar_11$predicitons_inverted, title = "oos_forecasts_ar11", ylab = "gdp", col = "blue", CI = TRUE,
+gdp_forecast_plot(data$GDPC1, ar_11$predicitons_inverted, title = "oos_forecasts_ar11", ylab = "gdp", 
+                  col = "blue", CI = TRUE,
                   se = ar_11$predicitons$se) 
 
 ##############################################################################################
-# estimating benchmark models recursively: using ar11 based on results above
+# estimating benchmark models recursively: using ar_33 for growth based on results above
 # standard errors and forecasts are pretty similar
 # corona outburst is weaker predicted, the larger the forecast horizon
 ##############################################################################################
@@ -145,7 +165,7 @@ forh = c(1,2,3,4) # h = 1,...,4 forecast horizons
 # direct oos forecaste gdp growth 
 source("03_benchmark.R")
 set.seed(501)
-result_ar_growth = ar_rolling_recursive(data$GDP_GR, ar_ord = 1, ma_ord = 1, 
+result_ar_growth = ar_rolling_recursive(data$GDP_GR, ar_ord = 3, ma_ord = 3, 
                                         h_max, forh, 
                                         Fstdf = FALSE, xi = 0)
 head(result_ar_growth)
@@ -157,6 +177,17 @@ head(result_ar_growth)
 # evaluate forecasts using: ME, MAE, MSE, RMSE
 eval_for_ar_growth = eval_forc(result_ar_growth[1:(dim(result_ar_growth)[1]-1),], forh) 
 print(eval_for_ar_growth)
+# $me
+# [1]  0.0007360142 -0.0002127133  0.0004712723  0.0005321455  0.0005774997
+# 
+# $mse
+# [1] 0.0001726372 0.0003165993 0.0002532807 0.0002525814 0.0002523337
+# 
+# $mae
+# [1] 0.005876412 0.007493321 0.007670458 0.007817123 0.007493611
+# 
+# $rmse
+# [1] 0.01313915 0.01779324 0.01591479 0.01589281 0.01588502
 
 # forecasting GDP iteratively (not growth)
 ##############################################################################################
@@ -175,10 +206,33 @@ head(result_ar)
 # evaluate
 eval_for_ar = eval_forc(result_ar[1:(dim(result_ar)[1]-1),], forh) 
 print(eval_for_ar)
+# $me
+# [1]   76.99747  -63.22942 -131.27297 -251.01090 -337.36484
+# 
+# $mse
+# [1]  73105.53 322056.29 160912.89 235013.23 259458.05
+# 
+# $mae
+# [1] 185.0300 290.2748 281.7893 345.6882 398.2318
+# 
+# $rmse
+# [1] 270.3803 567.5000 401.1395 484.7816 509.3702
 
 ##############################################################################################
 # plotting the different forecasts
 ##############################################################################################
+# plotting growth forecasts
+source("04_plots.R")
+for (j in 1:5) {
+  gdp_forecast_plot(data$GDP_GR, gdp_forecast = result_ar_growth[,(2*j-1)], 
+                    se = sd(result_ar_growth[,(2*j-1)]), 
+                    title = paste0("oos_GDP_forecasts_ar11, h=",j-1), 
+                    ylab = "GDP", col = "blue", 
+                    CI = TRUE)
+  print(head(result_ar_growth[,(2*j-1)])) # printing first forecasts
+  print(sd(result_ar_growth[,(2*j-1)])) # printing standard error 
+}
+# plotting GDP
 source("04_plots.R")
 for (j in 1:5) {
   gdp_forecast_plot(data$GDPC1, gdp_forecast = result_ar[,(2*j-1)], 
@@ -192,7 +246,7 @@ for (j in 1:5) {
 
 # using ggplot2
 ##############################################################################################
-# estimate plain rf and forecast values from 2000 up to 2022
+# estimate plain rf and forecast growth rate values from 2000 up to 2022
 ##############################################################################################
 # create train (in_sample) and test (out_of_sample) dataframe for GDP growth
 X_in = data_in[,-(2:3)] # regressors
@@ -203,7 +257,7 @@ ntree = 500
 
 source("06_rf.R")
 # fit plain rf using OOB (out-of-bag error) as test-error estimate 
-set.seed(123) 
+set.seed(501) 
 rf_plain_growth = rf_plain(X = X_in[,-1], 
                     gdp = y_in,
                     oos_dataframe = X_out[,-1], # unseen dataset for prediction
@@ -219,11 +273,7 @@ gdp_growth_forecast_plot(data$GDP_GR, gdp_forecast = rf_plain_growth$plain_fores
                          "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green", 
                          CI = TRUE)
 
-plot(rf_plain_growth$forest) # OOB sample error 
-which.min(rf_plain_growth$forest$mse) # number of tree that minimize OOB sample error: 479
-# importance plot
-randomForest::varImpPlot(rf_plain_growth$forest)
-# %increase in MSE and increase in node purity 
+
 
 ### converting GDP back, i.e. inverting the diff(log(x)) transformation (get levels from growth rate)
 # and plotting
@@ -234,11 +284,31 @@ gdp_forecast_plot(data$GDPC1, gdp_forecast = gdp_inverted,
                   "oos_growth_forecasts_rf_plain", ylab = "GDP", 
                   col = "green", CI = FALSE)
 # error accumulates => the larger the horizon, the more and more GDP is overestimated 
-### using ggplot2 
+par(mfrow = c(1,1)) # reset window
 ##############################################################################################
-# now trying out validation set approach / LAST BLOCK EVALUATION
+# oob error 
+##############################################################################################
+source("06_rf.R")
+# fit plain rf using OOB (out-of-bag error) as test-error estimate for entire dataset
+set.seed(501) 
+rf_plain_growth = rf_plain(X = data[,-c(1,2,3)], 
+                           gdp = data$GDP_GR,
+                           oos_dataframe = X_out[,-1], # unseen dataset for prediction
+                           mtry = round(sqrt(dim(data_in[,-(1:3)])[2])), 
+                           # number of predictors used is square root of overall predictors available
+                           ntrees = ntree,
+                           Fstdf = FALSE, 
+                           xi = data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"])
+plot(rf_plain_growth$forest$mse) # OOB sample error 
+which.min(rf_plain_growth$forest$mse) # number of tree that minimize OOB sample error: 479
+# importance plot
+randomForest::varImpPlot(rf_plain_growth$forest)
+# %increase in MSE and increase in node purity 
+
+##############################################################################################
+# now trying out validation-set approach / LAST BLOCK EVALUATION
 # fit model in first part of the series => then evaluate on later part,
-# X_in goes from 1959-06-01 to 1999-12-01, which are approx. 40 years 
+# X_in goes from 1959Q3 to 1999Q4, which are approx. 40 years 
 # use data from 2000Q1 up to last value as one test set
 ##############################################################################################
 X_in = data_in[,-(2:3)] # regressors
@@ -247,11 +317,11 @@ X_out = data[( (dim(data)[1]-h_max + 1):(dim(data)[1]) ), -(2:3)]
 y_out = data[( (dim(data)[1]-h_max + 1):(dim(data)[1]) ), 3] 
 source("06_rf.R")
 # using validation set: training rf on training set (excluding data column) and testing on test-data
-set.seed(123)
+set.seed(501)
 rf_plain_vs = rf_plain_valid(X_in[,-1], y_in, X_out[,-1], y_out, 
                              ntrees = ntree, 
                              mtry = round(sqrt(dim(data_in[,-(1:3)])[2])) )
-plot(rf_plain_vs$test$mse) # test error
+plot(rf_plain_vs$test$mse, type = "lty") # test error
 ##############################################################################################
 # now using cross-validation / BLOCKED CROSS VALIDATION 
 # but cannot completely shuffle df, here I need to use step-wise approach
@@ -264,6 +334,7 @@ plot(rf_plain_vs$test$mse) # test error
 cv_plain = matrix(0, nrow = ntree, ncol = length(seq(which(data$dates == 2000.00), (nrow(data)-3), by = 4)))  
 # initialize matrix to store test error: ncol equals number of cv test sets (33).
 c = 1 # initialize running index
+set.seed(501)
 for (y in (seq(which(data$dates == 2000.00), (nrow(data)-3), by = 4) )) {
   X_in_slice = data[1:(y-1),-(2:3)] # current training set
   y_in_slice = data[1:(y-1),3]
@@ -280,7 +351,7 @@ for (y in (seq(which(data$dates == 2000.00), (nrow(data)-3), by = 4) )) {
 }
 # compute for each row (i.e. number of tree used in forest) the average of all test-set MSE's
 cv_ntree_plain = apply(cv_plain, 1, mean) # apply mean to to matrix cv_plain by row 
-
+plot(cv_ntree_plain, type = "lty") # test error
 ##############################################################################################
 # compare oob-error, validation-error and cross-validation error
 ##############################################################################################
@@ -294,7 +365,9 @@ ggplot_errors(df = plot.data, colors = colors)
 which.min(rf_plain_growth$forest$mse) # number of trees that minimize OOB sample error: 395
 which.min(rf_plain_vs$test$mse) # number of trees that minimize OOB sample error: 395
 which.min(cv_ntree_plain) # number of trees that minimize OOB sample error: 395
-# stabilizes very quickly 
+# oob error stabilizes very quickly 
+# CV error also, but higher level
+# test-error seems to approach oob error, but way more sluggish in the beginning 
 
 ##############################################################################################
 # trying out estimating GDP using plain rf without making all time series in the dataset stationary
@@ -345,7 +418,7 @@ gdp_growth_forecast_plot(data$GDPC1, gdp_forecast = diffinv(rf_plain_growth$plai
                                                             xi = data$GDPC1[data$dates == 2000.00]), 
                          se = diffinv(rf_plain_growth$plain_forest_pred,
                                       xi = data$GDPC1[data$dates == 2000.00]), 
-                         "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green", 
+                         "oos_GDP_forecasts_rf_plain", ylab = "gdp growth", col = "green", 
                          CI = TRUE)
 
 ### estimate first difference gdp with de-meaning
@@ -363,7 +436,7 @@ rf_plain_growth = rf_plain(X = X_in[,-1],
                            xi = data$GDPC1[data$dates == 2000.00])
 gdp_growth_forecast_plot(data$GDPC1, gdp_forecast = rf_plain_growth$plain_forest_pred, 
                          se = sd(rf_plain_growth$plain_forest_pred), 
-                         "oos_growth_forecasts_rf_plain", ylab = "gdp growth", col = "green", 
+                         "oos_GDP_forecasts_rf_plain", ylab = "gdp growth", col = "green", 
                          CI = FALSE)
 # not really a difference from eye-balling
 ##############################################################################################
@@ -400,6 +473,7 @@ source("05_functions.R")
 eval_for_rf = eval_forc(result_rf[1:(dim(result_rf)[1]-1),], forh) 
 # using all but last row (since no comparable data)
 print(eval_for_rf)
+### results using NOT updated df with some series not stationary
 # $me
 # [1] 0.0007788418 0.0007276938 0.0012682047 0.0009999453 0.0013073248
 # 
@@ -411,10 +485,22 @@ print(eval_for_rf)
 # 
 # $rmse
 # [1] 0.01046553 0.01704170 0.01541758 0.01514619 0.01493672
+### RESULTS using new df with alle series stationary
+# $me
+# [1] 0.0007306682 0.0009956746 0.0018627365 0.0017896122 0.0017346334
+# 
+# $mse
+# [1] 0.0001105420 0.0002827077 0.0002430072 0.0002231808 0.0002180222
+# 
+# $mae
+# [1] 0.002984076 0.006503464 0.006849856 0.006540405 0.006502038
+# 
+# $rmse
+# [1] 0.01051390 0.01681391 0.01558869 0.01493924 0.01476558
 # compare to ar11
 print(eval_for_ar_growth)
 
-# rf better already
+# rf better already w.r.t rmse 
 ##############################################################################################
 # converting GDP back (not growth) when rolling window approach is used  
 ##############################################################################################
@@ -438,6 +524,7 @@ for (j in 1:5) {
 # forecast evaluation
 eval_for_rf_GDP = eval_forc(result_rf_GDP[1:(dim(result_rf_GDP)[1]-1),], forh) 
 print(eval_for_rf_GDP)
+### results using NOT updated df with some series not stationary
 # $me
 # [1]   91.35457   86.03237   18.95288  -62.13409 -127.54753
 # 
@@ -449,6 +536,18 @@ print(eval_for_rf_GDP)
 # 
 # $rmse
 # [1] 136.2713 137.1214 274.5507 339.0907 391.7072
+### RESULTS using new df with alle series stationary
+# $me
+# [1]   90.36555   90.87928   28.72847  -49.21344 -120.64445
+# 
+# $mse
+# [1]  17951.60  19086.12  76775.09 110339.21 148834.90
+# 
+# $mae
+# [1] 112.3445 113.5487 114.1585 172.2232 250.7959
+# 
+# $rmse
+# [1] 133.9836 138.1525 277.0832 332.1735 385.7913
 # compare to ar11 
 print(eval_for_ar)
 
@@ -472,6 +571,18 @@ for (j in 1:5) {
 # forecast evaluation when using only 1 base value
 eval_for_rf_GDP_acc = eval_forc(result_rf_GDP_acc[1:(dim(result_rf_GDP_acc)[1]-1),], forh) 
 print(eval_for_rf_GDP_acc)
+### using updated df
+# $me
+# [1]  232.5311 1323.4426 1932.2854 1595.4208 1301.5541
+# 
+# $mse
+# [1]  197907.1 2555613.8 5424384.6 3716195.1 2476830.2
+# 
+# $mae
+# [1]  294.0588 1323.4426 1934.2176 1600.9620 1308.4918
+# 
+# $rmse
+# [1]  444.8675 1598.6287 2329.0308 1927.7435 1573.7948
 # compare to ar11 
 print(eval_for_ar)
 ##############################################################################################
@@ -508,7 +619,7 @@ eval_for_rf_GDPC1 = eval_forc(result_rf_GDPC1[1:(dim(result_rf)[1]-1),], forh)
 print(eval_for_rf_GDPC1)
 # compare to ar11
 print(eval_for_ar)
-
+#### not updated data
 ### only differencing (not centering)
 # $me
 # [1] 145.8778 132.8890 371.4914 116.6855 157.7792
@@ -533,8 +644,21 @@ print(eval_for_ar)
 # 
 # $rmse
 # [1] 287.5410 298.6756 441.0141 335.9812 355.6806
-
-##############################################################################################
+######
+## updated data with centering the data
+# $me
+# [1] 134.5109  71.5181 354.2657 263.8894 185.9121
+# 
+# $mse
+# [1]  88997.62  96090.39 244725.43 176914.16 145829.61
+# 
+# $mae
+# [1] 207.7026 200.4991 380.6041 300.1480 275.8487
+# 
+# $rmse
+# [1] 298.3247 309.9845 494.6973 420.6116 381.8764
+# rf for some h better, for some h worse .. 
+# ##############################################################################################
 # Rolling window for GDP using first Hodrick Prescott Filter
 ##############################################################################################
 source("05_functions.R")
@@ -571,26 +695,41 @@ node_size_grid = seq(3,9, 2)
 # save oob error into matrix: rows are the years, columns are the parameter combinations
 # for lowest error of the year: store ntree the yielded lowest error for the parameter combination
 
-hyper_oob_final = list()
+### 1a) GDP GROWTH
+hyper_oob_final_growth = list()
 
 source("06_rf.R")
 Sys.time()
 start_time = Sys.time()
 # for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
-hyper_oob_final = rf_ranger_oob(df = data, mtry_grid, samp_size_grid, node_size_grid, 
+hyper_oob_final_growth = rf_ranger_oob(df = data, mtry_grid, samp_size_grid, node_size_grid, 
                                 500, hyper_para_list = hyper_oob_final)
 
-saveRDS(hyper_oob_final, file = "output/hyperparams_oob.rda") # save hyper_oob_final 
+saveRDS(hyper_oob_final_growth, file = "output/hyperparams_oob_growth.rda") # save hyper_oob_final 
 end_time = Sys.time()
 print(paste("estimation time: ", end_time-start_time))
-
 # read hyperparameters
-hyper_oob_final = readRDS("output/hyperparams_oob.rda")
+hyper_oob_final_growth = readRDS("output/hyperparams_oob_growth.rda")
 
+### 1b) GDP
+hyper_oob_final_level = list()
+source("06_rf.R")
+Sys.time()
+start_time = Sys.time()
+# for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
+hyper_oob_final_level = rf_ranger_oob_level(df = data, mtry_grid, samp_size_grid, node_size_grid, 
+                                       500, hyper_para_list = hyper_oob_final,
+                                       gdp = data$GDPC1)
+
+saveRDS(hyper_oob_final_level, file = "output/hyperparams_oob_level.rda") # save hyper_oob_final 
+end_time = Sys.time()
+print(paste("estimation time: ", end_time-start_time))
+# read hyperparameters
+hyper_oob_final_level = readRDS("output/hyper_oob_final_level.rda")
 
 ### 2) using test_error Procedure / LAST BLOCK EVALUATION
 # again for each year, grid of the hyper parameter combination is computed
-# now not using oob error, but using test set, which are the next 4 quarters of the next year
+# now computing test-error by using test-set, which are the next 4 quarters of the next year
 # fist rf is fit on data up to test data (e.g. up to 1999 in the first iteration)
 # and evaluated on first year later (since max h = 4), using test error
 # then the optimal parameters (parameter combination that yields smallest test set error)
@@ -598,24 +737,39 @@ hyper_oob_final = readRDS("output/hyperparams_oob.rda")
 # then the training horizon is increased by last year (last test test), 
 # again yielding optimal parameters the next year, and so on
 
-
+### 2a) test-error GDP GROWTH
 hyper_test_final= list()
 
 source("06_rf.R")
 set.seed(123)
 Sys.time()
 start_time = Sys.time()
-hyper_test_final = rf_hyper_test_set(df = data$df_trans, mtry_grid, samp_size_grid, node_size_grid, 500, 
+hyper_test_final = rf_hyper_test_set(df = data, mtry_grid, samp_size_grid, node_size_grid, 500, 
                                      hyper_para_list = hyper_test_final)
 saveRDS(hyper_test_final, file = "output/hyper_test_final.rda")
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
 
-# put list into a matrix for seminar paper
-hyper_test_final = readRDS("output/hyper_test_final.rda")
-# hyper_test_final = matrix(0, nrow = 1, ncol = 4) 
-# colnames(hyper_test_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
-# rownames(hyper_test_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
+
+### 2b) test-error GDP GROWTH
+hyper_test_final_level= list()
+
+source("06_rf.R")
+set.seed(123)
+Sys.time()
+start_time = Sys.time()
+hyper_test_final_level = rf_hyper_test_set_level(df = data, mtry_grid, samp_size_grid, node_size_grid, 500, 
+                                     hyper_para_list = hyper_test_final, gdp = data$GDPC1)
+saveRDS(hyper_test_final_level, file = "output/hyper_test_final_level.rda")
+end_time = Sys.time()
+print(paste("estimation time", end_time-start_time))
+
+# not NEEDED??
+# # put list into a matrix for seminar paper
+# hyper_test_final = readRDS("output/hyper_test_final_level.rda")
+# # hyper_test_final = matrix(0, nrow = 1, ncol = 4) 
+# # colnames(hyper_test_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
+# # rownames(hyper_test_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
 
 ##############################################################################################
 # now using cross_validation, i.e. BLOCKED CROSS VALIDATION
@@ -661,9 +815,17 @@ hyperset_prewindow = rf_hyperpara_prewindow[which.min(rf_hyperpara_prewindow[,1]
 
 
 
+##############################################################################################
+# using rangerts, i.e. ordered boostrapping
+
+# 1) rolling window for GDP and GDP growth -> already better ??
+# 2) hyperparameter tuning for GDP and GDP growth 
+
 ### to do:
 # delete some View()
-# all with qqplot 
+# plots in paper with qqplot 
+# Teil's U and DM test
+# using rangerts !!!
 # comparing forecasting errors when not including corona 
-# using different filter for gdp (hodrick prescott..)
+# using different filter for gdp (hodrick prescott..) -> no results
 # again forecasting with rf: now using also the quartely data from mccracken (if not the same??)

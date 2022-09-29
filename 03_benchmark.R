@@ -3,7 +3,7 @@
 # simple GDP forecast using first order difference
 ar = function(gdp, ar_ord, ma_ord, h_max){
   par(mfrow = c(1,1))
-  gdp_ts = ts(gdp, start = c(1959,2), frequency = 4) # create ts object
+  gdp_ts = ts(gdp, start = c(1959,3), frequency = 4) # create ts object
   
   # acf and pacf of nonstationary ts
   print(tsapp::acfpacf(gdp_ts, lag = 50))
@@ -63,7 +63,7 @@ ar = function(gdp, ar_ord, ma_ord, h_max){
 # simple GDP growth forecast
 ar_growth = function(gdp, ar_ord, ma_ord, h_max){
   par(mfrow = c(1,1))
-  gdp_ts = ts(gdp, start = c(1959,2), frequency = 4) # create ts object
+  gdp_ts = ts(gdp, start = c(1959,3), frequency = 4) # create ts object
   
   # # acf and pacf of nonstationary ts
   # print(tsapp::acfpacf(gdp_ts, lag = 50))

@@ -176,18 +176,16 @@ create_df_2 = function(df, gdp){
   data1 = as.data.frame(matrix(0, nrow = nrow(df)-10, ncol = ncol(df))) # initialize empty matrix
   data1[,1] = openxlsx::convertToDate(as.matrix(df[-(1:10),1])) # date column
   data1[,-1] = apply(as.matrix(df)[-(1:10),-1], 2, as.numeric) # convert characters to numbers
-  # print variables containing NA's
+  # check how many variables containing NA's
   id = c()
   for (i in (2:ncol(data1))) {
-    # browser()
     if(is.na(data1[1,i]) == TRUE){
-      append(id, i, after = length(id))
-      print(id)
+      id = append(id, i, after = length(id))
     }
   }
   print(paste0(length(id), " variables contain NA's"))
-  # apply(as.matrix(df)[-(1:10),-1], 2, function(x){if(anyNA(x)==TRUE){}}) # convert characters to numbers)
-  data1[,-1] = apply(data1[,-1], 2, function(x) {ifelse(is.na(x), median(x, na.rm = TRUE), x)}) # replace NA's with median
+  # replace NA's with median
+  data1[,-1] = apply(data1[,-1], 2, function(x) {ifelse(is.na(x), median(x, na.rm = TRUE), x)}) 
   # column names
   data2 = data1[,-1] # df without date column
   colnames(data2) = as.vector(as.matrix(df)[4,-1])
@@ -241,6 +239,7 @@ create_df_2 = function(df, gdp){
   # rename some columns 
   names(data)[names(data) == "data5[, 1]"] = "dates"
   names(data)[names(data) == "num"] = "GDPC1"
+  # cut of dataframe at last quarter of 2021
   data = as.data.frame(data[1:which(data[,1] == 2021.75),])
   return(data)
 }
