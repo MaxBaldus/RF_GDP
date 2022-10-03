@@ -3,17 +3,17 @@
 rm(list=ls()) # clear out all variables in current session 
 
 # Set working directory
-# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 # office:
 # wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 # wd = "C:/Users/u32/Desktop/Max/RF_GDP"
-wd = "C:/Users/Guest/Desktop/Max/RF_GDP"
+# wd = "C:/Users/Guest/Desktop/Max/RF_GDP"
 
 setwd(wd)
 
 # Load Packages
 source("01_load_packages.R")
-a = TRUE # set a to true if You want to install packages
+a = FALSE # set a to true if You want to install packages
 install_and_load(a = a) 
 ##############################################################################################
 # 2) prepare the data
@@ -725,7 +725,7 @@ saveRDS(hyper_oob_final_level, file = "output/hyperparams_oob_level.rda") # save
 end_time = Sys.time()
 print(paste("estimation time: ", end_time-start_time))
 # read hyperparameters
-hyper_oob_final_level = readRDS("output/hyper_oob_final_level.rda")
+hyper_oob_final_level = readRDS("output/hyperparams_oob_level.rda")
 
 ### 2) using test_error Procedure / LAST BLOCK EVALUATION
 # again for each year, grid of the hyper parameter combination is computed
@@ -750,8 +750,10 @@ saveRDS(hyper_test_final, file = "output/hyper_test_final.rda")
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
 
+# read hyperparameters
+hyper_test_final = readRDS("output/hyper_test_final.rda")
 
-### 2b) test-error GDP GROWTH
+### 2b) test-error GDP
 hyper_test_final_level= list()
 
 source("06_rf.R")
@@ -763,13 +765,9 @@ hyper_test_final_level = rf_hyper_test_set_level(df = data, mtry_grid, samp_size
 saveRDS(hyper_test_final_level, file = "output/hyper_test_final_level.rda")
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
+# read hyperparameters
+hyper_test_final_level = readRDS("output/hyper_test_final_level.rda")
 
-# not NEEDED??
-# # put list into a matrix for seminar paper
-# hyper_test_final = readRDS("output/hyper_test_final_level.rda")
-# # hyper_test_final = matrix(0, nrow = 1, ncol = 4) 
-# # colnames(hyper_test_final) = c("OOB_Error", "mtry", "samp_size", "node_size")
-# # rownames(hyper_test_final) = sprintf("%d", seq(1999, 2021, by = 1)) # first row remains 0
 
 ##############################################################################################
 # now using cross_validation, i.e. BLOCKED CROSS VALIDATION
@@ -779,40 +777,81 @@ print(paste("estimation time", end_time-start_time))
 # for each hyper parameter combination 
 # really needed? I.E. NEEDED TO  ESTIMATE TEST ERROR BETTER? OR IS LAST BLOCK EVALUATION ENOUGH?
 
-
-
 ##############################################################################################
-# optimal hyper parameter search for the years from start of the time series up to 2000Q1, using CV
-# (to find out the best hyperparameters to be used in the first iteration)
-# here: for each hyperparamater combination: slice dataframe and use the rows from beginning
-# up to  1978-03-01 in the first iteration as training set
-# then store oob error for the current combination, and refit model again including the next quarter into training-set,
-# and so on,
-# then take the average for the current hyperparam combination to compute the cv error
+# again using rolling window and training new forest for each new window, but this time,
+# using the tuned hyper parameter from each year before, using the oob error
+##############################################################################################
+### 1a) GDP GROWTH
 source("06_rf.R")
-h_max_presample = 40 # 10 years * 4 quarters = 40 years
-set.seed(123) # setting seed again for each new combination to make results comparable 
-Sys.time()
-start_time = Sys.time()
-rf_hyperpara_prewindow =rf_ranger_oob_prewindow(df = data_in$insample_dataframe, # using test_df 
-                        mtry_grid, samp_size_grid, node_size_grid, 500, 
-                        h_max = h_max_presample)  
-saveRDS(rf_hyperpara_prewindow, file = "output/hyper_test_final.rda")
-end_time = Sys.time()
-print(paste("estimation time", end_time-start_time))
+set.seed(501)
+rf_rolling_growth_hyperopt = rf_plain_rolling_hyperopt(df = data, # exclude data column and GDPC1
+                                    gdp = data$GDP_GR, ntrees = 500, forh,
+                                    hyper_para_list = hyper_oob_final_growth)
+source("05_functions.R")
+result_rf_hyperopt = feed_in(result = rf_rolling_growth_hyperopt, gdp = data$GDP_GR, h_max, forh)
+# plotting the different forecasts
+source("04_plots.R")
+par(mfrow = c(1, 1))
+for (j in 1:5) {
+  gdp_growth_forecast_plot(data$GDP_GR, gdp_forecast = result_rf_hyperopt[,(2*j-1)], 
+                           se = sd(result_rf_hyperopt[,(2*j-1)]), 
+                           title = paste0("oos_growth_forecasts_rf_plain, h=",j-1), 
+                           ylab = "gdp growth", col = "green", 
+                           CI = FALSE)
+  print(head(result_rf_hyperopt[,(2*j-1)])) # printing first forecast
+  print(sd(result_rf_hyperopt[,(2*j-1)])) # printing standard error 
+}
+# evaluate forecasts
+source("05_functions.R")
+eval_for_rf_hyperopt = eval_forc(result_rf_hyperopt[1:(dim(result_rf_hyperopt)[1]-1),], forh) 
+# using all but last row (since no comparable data)
+print(eval_for_rf_hyperopt)
+# $me
+# [1] 0.0006834487 0.0010013556 0.0019845451 0.0017247639 0.0019248821
+# 
+# $mse
+# [1] 0.0001036816 0.0002855315 0.0002387426 0.0002219672 0.0002194144
+# 
+# $mae
+# [1] 0.002494474 0.006451542 0.007030872 0.006572144 0.006608819
+# 
+# $rmse
+# [1] 0.01018242 0.01689768 0.01545130 0.01489856 0.01481264
+print(eval_for_rf) 
+# yielding not really superior results  
 
-# slice out best hyperparameter combination
-hyperset_prewindow = rf_hyperpara_prewindow[which.min(rf_hyperpara_prewindow[,1]),]
+### 1b)GDP
+source("06_rf.R")
+set.seed(501)
+rf_rolling_hyperopt_level = rf_plain_rolling_hyperopt(df = data, # exclude data column and GDPC1
+                                                       gdp = data$GDPC1, ntrees = 500, forh,
+                                                       hyper_para_list = hyper_oob_final_level)
+source("05_functions.R")
+result_rf_hyperopt_level = feed_in(result = rf_rolling_hyperopt_level, gdp = data$GDPC1, h_max, forh)
+head(result_rf_hyperopt_level)
+# plotting the different forecasts
+source("04_plots.R")
+par(mfrow = c(1, 1))
+for (j in 1:5) {
+  gdp_growth_forecast_plot(data$GDPC1, gdp_forecast = result_rf_hyperopt_level[,(2*j-1)], 
+                           se = sd(result_rf_hyperopt_level[,(2*j-1)]), 
+                           title = paste0("oos_growth_forecasts_rf_plain, h=",j-1), 
+                           ylab = "gdp growth", col = "green", 
+                           CI = FALSE)
+  print(head(result_rf_hyperopt_level[,(2*j-1)])) # printing first forecast
+  print(sd(result_rf_hyperopt_level[,(2*j-1)])) # printing standard error 
+}
+# evaluate forecasts
+source("05_functions.R")
+eval_for_rf_hyperopt_level = eval_forc(result_rf_hyperopt_level[1:(dim(result_rf_hyperopt_level)[1]-1),], forh) 
+# using all but last row (since no comparable data)
+print(eval_for_rf_hyperopt_level)
+
+print(eval_for_rf) 
 
 
-##############################################################################################
-# 2) again using rolling window and training new forest for each new window, but this time,
-# using the tuned hyperparameter from each year before, using the oob error
-
-# CALLING 
-
-
-
+### 2a) GDP GROWTH with test set
+### 2b) GDP with test set
 
 
 ##############################################################################################
