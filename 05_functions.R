@@ -170,4 +170,23 @@ hp = function(gdp){
   return(list("hp"= hp, "residuals" = hp_res))
 }
 
+##############################################################################################
+# Theil's U and DM test
+##############################################################################################
+
+dm_tests = function(gdp, h_num,
+                   result_rf, result_arma){
+  # h_num = 5: having five forecast hozions
+  # for horizons h = 1,...,4: 
+  # first for gdp growth
+  for (h in 1:(h_num-1)) {
+    browser()
+
+    # always deleting forecasts not observed (for each h)
+    e_arma = gdp[h:length(gdp)] - result_arma[1:(nrow(result_arma)-h),2+((2*h)-1)] # starting with h = 1
+    e_rf = gdp[h:length(gdp)] - result_rf[1:(nrow(result_rf)-h),2+((2*h)-1)]
+    forecast::dm.test(e1 = e_arma, e2 = e_rf, h = h) 
+  }
+  
+}
 

@@ -820,12 +820,12 @@ print(eval_for_rf_hyperopt)
 print(eval_for_rf) 
 # yielding not really superior results  
 
-### 1b)GDP
+### 1b) GDP
 source("06_rf.R")
 set.seed(501)
-rf_rolling_hyperopt_level = rf_plain_rolling_hyperopt(df = data, # exclude data column and GDPC1
-                                                       gdp = data$GDPC1, ntrees = 500, forh,
-                                                       hyper_para_list = hyper_oob_final_level)
+rf_rolling_hyperopt_level = rf_GDP_rolling_hyperopt(df = data, gdp = data$GDPC1, ntrees = 500, forh,
+                                                    hyper_para_list = hyper_oob_final_level, 
+                                                    xi = data$GDPC1[data$dates == 2000.00])
 source("05_functions.R")
 result_rf_hyperopt_level = feed_in(result = rf_rolling_hyperopt_level, gdp = data$GDPC1, h_max, forh)
 head(result_rf_hyperopt_level)
@@ -846,12 +846,37 @@ source("05_functions.R")
 eval_for_rf_hyperopt_level = eval_forc(result_rf_hyperopt_level[1:(dim(result_rf_hyperopt_level)[1]-1),], forh) 
 # using all but last row (since no comparable data)
 print(eval_for_rf_hyperopt_level)
-
+# $me
+# [1]  66.36024 109.36703 364.13748 277.93388 215.75250
+# 
+# $mse
+# [1]  72297.85  97080.65 244710.53 186902.77 169132.36
+# 
+# $mae
+# [1] 176.1194 216.5640 373.0317 319.5101 305.9868
+# 
+# $rmse
+# [1] 268.8826 311.5777 494.6822 432.3225 411.2570
 print(eval_for_rf) 
 
 
 ### 2a) GDP GROWTH with test set
 ### 2b) GDP with test set
+
+
+##############################################################################################
+# computing Theil's U and Diebold Mariano Test for all benchmark and forest models
+##############################################################################################
+source("05_functions.R")
+# DM test GDP GROWTH, for each h 
+dm_tests(gdp = data$GDP_GR[which(data$dates == 2000.00):length(data$dates)], 
+        h_num = 5,
+        result_rf = result_rf, result_arma = result_ar_growth)
+
+
+
+
+
 
 
 ##############################################################################################
@@ -867,4 +892,5 @@ print(eval_for_rf)
 # using rangerts !!!
 # comparing forecasting errors when not including corona 
 # using different filter for gdp (hodrick prescott..) -> no results
+# use lagged gdp values...
 # again forecasting with rf: now using also the quartely data from mccracken (if not the same??)
