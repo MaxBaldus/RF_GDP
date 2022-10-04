@@ -3,10 +3,10 @@
 rm(list=ls()) # clear out all variables in current session 
 
 # Set working directory
-wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 # office:
 # wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
-# wd = "C:/Users/u32/Desktop/Max/RF_GDP"
+wd = "C:/Users/u32/Desktop/Max/RF_GDP"
 # wd = "C:/Users/Guest/Desktop/Max/RF_GDP"
 
 setwd(wd)
@@ -24,11 +24,11 @@ source("02_data_cleaning.R") # load data-cleaning file
 inspect_mc(df_mc)
 data_mc = suppressWarnings(clean_mc(df_mc))  # list with all relevant components extracted
 
-# df by Carstensen 
-df = read_excel("input/SW_Updated_2022.xlsx", sheet = "Monthly Data")
+# # df by Carstensen 
+# df = read_excel("input/SW_Updated_2022.xlsx", sheet = "Monthly Data")
 gdp = read_excel("input/SW_Updated_2022.xlsx", sheet = "US GDP")
-source("02_data_cleaning.R")
-data = create_df(df, gdp)
+# source("02_data_cleaning.R")
+# data = create_df(df, gdp)
 
 # updated df 16.09.'22
 df_2 = read_excel("input/SW_Updated_2022_2.xlsx", sheet = "Monthly Data")
@@ -175,6 +175,7 @@ source("05_functions.R")
 result_ar_growth = feed_in(result = result_ar_growth, gdp = data$GDP_GR, h_max, forh)
 head(result_ar_growth)
 # evaluate forecasts using: ME, MAE, MSE, RMSE
+source("05_functions.R")
 eval_for_ar_growth = eval_forc(result_ar_growth[1:(dim(result_ar_growth)[1]-1),], forh) 
 print(eval_for_ar_growth)
 # $me
@@ -190,7 +191,7 @@ print(eval_for_ar_growth)
 # [1] 0.01313915 0.01779324 0.01591479 0.01589281 0.01588502
 
 # forecasting GDP iteratively (not growth)
-##############################################################################################
+### for GDP plain using first difference to make it stationary and centering
 # using ar11 model from above: 
 source("03_benchmark.R") 
 set.seed(501)
@@ -244,7 +245,6 @@ for (j in 1:5) {
   print(sd(result_ar[,(2*j-1)])) # printing standard error 
 }
 
-# using ggplot2
 ##############################################################################################
 # estimate plain rf and forecast growth rate values from 2000 up to 2022
 ##############################################################################################
@@ -454,7 +454,8 @@ rf_plain_rolling = rf_plain_rolling(df = data, # exclude data column and GDPC1
 
 # feed in true gdp growth values
 source("05_functions.R")
-result_rf = feed_in(result = rf_plain_rolling, gdp = data$GDP_GR, h_max, forh)
+result_rf = feed_in_rf(result = rf_plain_rolling, gdp = data$GDP_GR, h_max, forh, data)
+#result_rf = feed_in(result = rf_plain_rolling, gdp = data$GDP_GR, h_max, forh)
 head(result_rf)
 # plotting the different forecasts
 source("04_plots.R")

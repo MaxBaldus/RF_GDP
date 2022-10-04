@@ -1,4 +1,4 @@
-# feed the true values into the results matrix (every 2nd column)
+# feed the true values into the results matrix (every 2nd column) for ar processes
 feed_in = function(result, gdp, h_max, forh){
   
   N = length(gdp) # length of time series
@@ -32,6 +32,43 @@ feed_in = function(result, gdp, h_max, forh){
   
   return(result)
 }
+
+# feed the true values into the results matrix (every 2nd column) for forests
+feed_in_rf = function(result, gdp, h_max, forh, df){
+  
+  N = length(gdp) # length of time series
+  # Nin = N - h_max # length of in sample observations
+  browser()
+  Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
+  # gdp h=0: 
+  result[1:((N-Nin)+1),2] = gdp[Nin:N]
+  
+  # gdp h=1: 
+  result[1:((N-Nin)+1),4] = gdp[Nin:N]
+  # 4th column: insert gdp values for h = 1
+  # since no values for 2022Q1 (using 2021Q4, i.e. y_2022Q1 = f(y_2021Q4, X_2021Q4) for comparison 
+  # => last entry in gdp h = 1 column needs to be 0 (no value), because 
+  # forecasting first quarter 2022 using last quarter in 2021 in last row
+  
+  # gdp h=2:
+  result[1:((N-Nin)-1),6] = gdp[(Nin+2):N]
+  # because forecasting 2 quarters now, last 2 rows must be 0, since
+  # data of 1st quarter 2022 & 2nd quarter not available now ...
+  
+  # gdp h=3:
+  result[1:((N-Nin)-2),8] = gdp[(Nin+3):N]
+  
+  # gdp h=4:
+  result[1:((N-Nin)-3),10] = gdp[(Nin+4):N]
+  
+  # # gdp h=3,4
+  # for (j in 3:max(forh)) {
+  #   result[1:((N-Nin)-(j)),2*j] = gdp[(Nin+j):N]
+  # }
+  
+  return(result)
+}
+
 ##############################################################################################
 # forecast evaluations
 ##############################################################################################
@@ -41,7 +78,7 @@ eval_forc = function(result, forh){
   
   num_hor = length(forh) # number of forecasts horizons (= 4, only considering h = 1,2,3,4 first)
   num_obs = dim(result_1)[1] # number of forecasts (88)
-  
+
   me = rep(NA, num_hor + 1) # initialize mean error
   mse = rep(NA,num_hor + 1) # initialize mse (mean squared error)
   mae = rep(NA,num_hor + 1) # initialize mae (mean absolute error)
