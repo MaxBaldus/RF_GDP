@@ -33,42 +33,6 @@ feed_in = function(result, gdp, h_max, forh){
   return(result)
 }
 
-# feed the true values into the results matrix (every 2nd column) for forests
-feed_in_rf = function(result, gdp, h_max, forh, df){
-  
-  N = length(gdp) # length of time series
-  # Nin = N - h_max # length of in sample observations
-  browser()
-  Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
-  # gdp h=0: 
-  result[1:((N-Nin)+1),2] = gdp[Nin:N]
-  
-  # gdp h=1: 
-  result[1:((N-Nin)+1),4] = gdp[Nin:N]
-  # 4th column: insert gdp values for h = 1
-  # since no values for 2022Q1 (using 2021Q4, i.e. y_2022Q1 = f(y_2021Q4, X_2021Q4) for comparison 
-  # => last entry in gdp h = 1 column needs to be 0 (no value), because 
-  # forecasting first quarter 2022 using last quarter in 2021 in last row
-  
-  # gdp h=2:
-  result[1:((N-Nin)-1),6] = gdp[(Nin+2):N]
-  # because forecasting 2 quarters now, last 2 rows must be 0, since
-  # data of 1st quarter 2022 & 2nd quarter not available now ...
-  
-  # gdp h=3:
-  result[1:((N-Nin)-2),8] = gdp[(Nin+3):N]
-  
-  # gdp h=4:
-  result[1:((N-Nin)-3),10] = gdp[(Nin+4):N]
-  
-  # # gdp h=3,4
-  # for (j in 3:max(forh)) {
-  #   result[1:((N-Nin)-(j)),2*j] = gdp[(Nin+j):N]
-  # }
-  
-  return(result)
-}
-
 ##############################################################################################
 # forecast evaluations
 ##############################################################################################
@@ -119,6 +83,59 @@ eval_forc = function(result, forh){
               smins = list(min_me = min_me,
                           min_mse = min_mse, min_mae = min_mae, min_rmse = min_rmse)))
 }
+# random forest evaluation
+eval_forc_rf = function(result, forh){
+  # excluding nowcast h = 0
+  result_1 = result[,-c(1,2)]
+  
+  num_hor = length(forh) # number of forecasts horizons (= 4, only considering h = 1,2,3,4 first)
+  num_obs = dim(result_1)[1] # number of forecasts (88)
+  
+  me = rep(NA, num_hor + 1) # initialize mean error
+  mse = rep(NA,num_hor + 1) # initialize mse (mean squared error)
+  mae = rep(NA,num_hor + 1) # initialize mae (mean absolute error)
+  rmse = rep(NA,num_hor + 1) # initialize rmse (root mean squared error)
+  
+  j = 1
+  while (j <= num_hor) {
+    result_2 = result_1[,(2*j-1):(2*j)]
+    h = 1
+    
+    me[j + 1] = (sum(result_2[,1] - result_2[,2]))/ (num_obs - h + 1) # compute me
+    mse[j + 1] = (sum((result_2[,1] - result_2[,2])^2))/ (num_obs - h + 1) # compute mse
+    mae[j+ 1] = (sum(abs(result_2[,1] - result_2[,2])))/ (num_obs - h + 1) # compute mae
+    rmse[j+ 1] = sqrt( (sum((result_2[,1] - result_2[,2])^2))/ (num_obs - h + 1)) # compute rmse
+    
+    h = h + 1
+    j = j + 1; 
+  }
+  # compute statistics for h = 0 (first entry in vector)
+  me[1] = (sum(result[,1] - result[,2]))/ dim(result)[1]  # compute mean error 
+  mse[1] = (sum((result[,1] - result[,2])^2))/ dim(result)[1] # compute mse
+  mae[1] = (sum(abs(result[,1] - result[,2])))/ dim(result)[1] # compute mae
+  rmse[1] = sqrt( (sum((result[,1] - result[,2])^2))/  dim(result)[1]) # compute mae
+  
+  # for (i in 1:5) {
+  #   h = 0
+  #   me[i] = (sum(result[,i] - result[,(i+1)]))/ (num_obs - h + 1) # compute me
+  #   mse[i] = (sum((result[,i] - result[,i+1])^2))/ (num_obs - h + 1) # compute mse
+  #   mae[i] = (sum(abs(result[,i] - result[,i+1])))/ (num_obs - h + 1) # compute mse
+  #   rmse[i] =  sqrt((sum((result[,i] - result[,i+1])^2)) / (num_obs - h + 1) ) 
+  #   h = h + 1
+  # }
+  
+  # get min values respectively
+  min_me = which.min(me) # h = 4 forecast has min me value ??
+  min_mse = which.min(mse) # h = 0 has min mse value
+  min_mae = which.min(mae) #  h = 0 has min mae value
+  min_rmse = which.min(rmse) #  h = 0 has min mae value
+  
+  
+  return(list(me = me, mse=mse, mae =mae, rmse = rmse,
+              smins = list(min_me = min_me,
+                           min_mse = min_mse, min_mae = min_mae, min_rmse = min_rmse)))
+}
+
 ##############################################################################################
 # converting gdp growth rate back to GDP levels
 ##############################################################################################

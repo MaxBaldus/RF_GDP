@@ -73,22 +73,19 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, forh) {
       # for each iteration: have a new dataframe
       X_train = X[1:(i-h),]
       y_train = y[1:(i-h),]
-      # browser()
       # train rf using values up to current window 
-      rand_forest = ranger::ranger(x = X_train[-nrow(X_train),-1], # exluding last training row
+      rand_forest = ranger::ranger(x = X_train[-nrow(X_train),-1], # excluding last training row
                                    y = y_train[-nrow(y_train),-1],
                                    mtry = mtry,
                                    importance = "none",
                                    num.trees = ntrees)
       # compute forecast, aka fitted value for current i & save
-      # use the last "currently known" window to get the fitted value 
+      # use the last "currently known" value in the window to get the fitted value / forecast
       y_hat = predict(rand_forest, X_train[nrow(X_train), -1])
       p = y_hat$predictions
-      # p = rand_forest$predictions[length(rand_forest$predictions)] 
       result[i-Nin+1,col_counter] = p
     }
-    # h = 1 passt ALLE
-    browser()
+    
     col_counter = col_counter + 2
     print(result)
   }
@@ -96,6 +93,8 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, forh) {
                         "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
                         "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
   
+  result[,c(2,4,6,8,10)] = gdp[which(df$dates == 2000.00):length(gdp)] # insert true gdp values from 2000Q1 up to 2021Q4:
+
   return(result)
 }
 # old (04.10)

@@ -3,10 +3,10 @@
 rm(list=ls()) # clear out all variables in current session 
 
 # Set working directory
-# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 # office:
 # wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
-wd = "C:/Users/u32/Desktop/Max/RF_GDP"
+# wd = "C:/Users/u32/Desktop/Max/RF_GDP"
 # wd = "C:/Users/Guest/Desktop/Max/RF_GDP"
 
 setwd(wd)
@@ -451,29 +451,26 @@ rf_plain_rolling = rf_plain_rolling(df = data, # exclude data column and GDPC1
                                     gdp = data$GDP_GR,
                                     mtry = (ncol(data) - 3)/3, # predictors used is square root of predictors
                                     ntrees = 500, forh)
-
-# feed in true gdp growth values
-source("05_functions.R")
-result_rf = feed_in_rf(result = rf_plain_rolling, gdp = data$GDP_GR, h_max, forh, data)
-#result_rf = feed_in(result = rf_plain_rolling, gdp = data$GDP_GR, h_max, forh)
-head(result_rf)
+head(rf_plain_rolling)
 # plotting the different forecasts
 source("04_plots.R")
 par(mfrow = c(1, 1))
 for (j in 1:5) {
-  gdp_growth_forecast_plot(data$GDP_GR, gdp_forecast = result_rf[,(2*j-1)], 
-                           se = sd(result_rf[,(2*j-1)]), 
+  gdp_growth_forecast_plot(data$GDP_GR, gdp_forecast = rf_plain_rolling[,(2*j-1)], 
+                           se = sd(rf_plain_rolling[,(2*j-1)]), 
                            title = paste0("oos_growth_forecasts_rf_plain, h=",j-1), 
                            ylab = "gdp growth", col = "green", 
                            CI = FALSE)
-  print(head(result_rf[,(2*j-1)])) # printing first forecast
-  print(sd(result_rf[,(2*j-1)])) # printing standard error 
+  print(head(rf_plain_rolling[,(2*j-1)])) # printing first forecast
+  print(sd(rf_plain_rolling[,(2*j-1)])) # printing standard error 
 }
 # evaluate forecasts
 source("05_functions.R")
-eval_for_rf = eval_forc(result_rf[1:(dim(result_rf)[1]-1),], forh) 
-# using all but last row (since no comparable data)
+# eval_for_rf = eval_forc(result_rf[1:(dim(result_rf)[1]-1),], forh) 
+eval_for_rf = eval_forc_rf(rf_plain_rolling, forh)
 print(eval_for_rf)
+#### HIER WEITER -> results kpien
+
 ### results using NOT updated df with some series not stationary
 # $me
 # [1] 0.0007788418 0.0007276938 0.0012682047 0.0009999453 0.0013073248
@@ -501,9 +498,9 @@ print(eval_for_rf)
 # compare to ar11
 print(eval_for_ar_growth)
 
-# rf better already w.r.t rmse 
+# Theil's U and DM TEST !!!!!
 ##############################################################################################
-# converting GDP back (not growth) when rolling window approach is used  
+# converting GDP back (not growth) when rolling window approach was used  
 ##############################################################################################
 source("05_functions.R")
 result_rf_GDP = feed_in(result = rf_plain_rolling, gdp = data$GDPC1, h_max, forh) # insert GDP level values
@@ -645,7 +642,6 @@ print(eval_for_ar)
 # 
 # $rmse
 # [1] 287.5410 298.6756 441.0141 335.9812 355.6806
-######
 ## updated data with centering the data
 # $me
 # [1] 134.5109  71.5181 354.2657 263.8894 185.9121
@@ -773,11 +769,12 @@ hyper_test_final_level = readRDS("output/hyper_test_final_level.rda")
 ##############################################################################################
 # now using cross_validation, i.e. BLOCKED CROSS VALIDATION
 # same approach as when using last bock evaluation, but now 
-# always using each quarter of next test year as test_set (one row)
-# -> then compute average of all the 4 test MSE's,
-# for each hyper parameter combination 
+# k = 10 => always using ten time 4 quarter iteratively for each combination to train and test
+# 1) start: train on 1:1987Q4, test on 1988 => train on 1:1988Q4, test on 1989 ... up to 1998 being test-set
+# this yields first hyper para combination for predicting 2000Q1 (even for h = 4 using 1999Q1)
+# 2) start: train on 1: 1988Q4, test on 1989 => up to test set: 1999 => yields hyper para for 2001Q1 with 2000Q1
 # really needed? I.E. NEEDED TO  ESTIMATE TEST ERROR BETTER? OR IS LAST BLOCK EVALUATION ENOUGH?
-
+# for each combination: average error (as in YOON -> k = 10 as in (CITED IN YOON))
 ##############################################################################################
 # again using rolling window and training new forest for each new window, but this time,
 # using the tuned hyper parameter from each year before, using the oob error
