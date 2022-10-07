@@ -115,15 +115,6 @@ eval_forc_rf = function(result, forh){
   mae[1] = (sum(abs(result[,1] - result[,2])))/ dim(result)[1] # compute mae
   rmse[1] = sqrt( (sum((result[,1] - result[,2])^2))/  dim(result)[1]) # compute mae
   
-  # for (i in 1:5) {
-  #   h = 0
-  #   me[i] = (sum(result[,i] - result[,(i+1)]))/ (num_obs - h + 1) # compute me
-  #   mse[i] = (sum((result[,i] - result[,i+1])^2))/ (num_obs - h + 1) # compute mse
-  #   mae[i] = (sum(abs(result[,i] - result[,i+1])))/ (num_obs - h + 1) # compute mse
-  #   rmse[i] =  sqrt((sum((result[,i] - result[,i+1])^2)) / (num_obs - h + 1) ) 
-  #   h = h + 1
-  # }
-  
   # get min values respectively
   min_me = which.min(me) # h = 4 forecast has min me value ??
   min_mse = which.min(mse) # h = 0 has min mse value
@@ -225,22 +216,59 @@ hp = function(gdp){
 }
 
 ##############################################################################################
-# Theil's U and DM test
+# DM test and Theil's U 
 ##############################################################################################
 
-dm_tests = function(gdp, h_num,
-                   result_rf, result_arma){
-  # h_num = 5: having five forecast hozions
+dm_tests = function(gdp, h_num, result_rf, result_arma){
+  # h_num = 5: having five forecast horizons (h=0,...,4)
   # for horizons h = 1,...,4: 
-  # first for gdp growth
-  for (h in 1:(h_num-1)) {
-    browser()
-
-    # always deleting forecasts not observed (for each h)
-    e_arma = gdp[h:length(gdp)] - result_arma[1:(nrow(result_arma)-h),2+((2*h)-1)] # starting with h = 1
-    e_rf = gdp[h:length(gdp)] - result_rf[1:(nrow(result_rf)-h),2+((2*h)-1)]
-    forecast::dm.test(e1 = e_arma, e2 = e_rf, h = h) 
-  }
   
+  dm = list(rep(0,4)) # initialize
+  
+  # #h = 0 nowcast not possible
+  # #print(paste0("current h = ", 0))
+  # e_arma = gdp[1:length(gdp)] - result_arma[1:(nrow(result_arma)-1),1] # starting with h = 1
+  # e_rf = gdp - result_rf[,1]
+  # dm[[1]] = forecast::dm.test(e1 = e_arma, e2 = e_rf, h = 0, varestimator = "bartlett",
+  #                        alternative = "greater") 
+  # #print(dm[[1]])
+  
+  for (h in 1:(h_num-1)) {
+
+    e_arma = gdp[h:length(gdp)] - result_arma[1:(nrow(result_arma)-h),2+((2*h)-1)] # starting with h = 1
+    e_rf = gdp - result_rf[,2+((2*h)-1)]
+    #print(paste0("current h = ", h))
+
+    if (h > 1) {
+      e_rf = e_rf[(h-1)] # delete first forecasts respectively to make them comparable (same length)
+    }
+    dm[[h]] = forecast::dm.test(e1 = e_arma, e2 = e_rf, h = h, varestimator = "bartlett",
+                           alternative = "greater")
+    #print(dm[[h+1]])
+  }
+  #H1:greater
+  # for (h in 1:(h_num-1)) {
+  #   
+  #   e_arma = gdp[h:length(gdp)] - result_arma[1:(nrow(result_arma)-h),2+((2*h)-1)] # starting with h = 1
+  #   e_rf = gdp - result_rf[,2+((2*h)-1)]
+  #   #print(paste0("current h = ", h))
+  #   
+  #   if (h > 1) {
+  #     e_rf = e_rf[(h-1)] # delete first forecasts respectively to make them comparable (same length)  
+  #   }
+  #   dm[[h]] = forecast::dm.test(e1 = e_arma, e2 = e_rf, h = h, varestimator = "bartlett",
+  #                               alternative = "less") 
+  #   #print(dm[[h+1]])
+  # }
+  
+  
+  return(dm)
 }
 
+theils_U = function(eval_rf, eval_arma, h_num){
+  U = c() # initialize
+  for (i in 1:h_num) {
+    U[i] = eval_rf$rmse[i] / eval_arma$rmse[i] # divide the rmse's for each h
+  }
+  return(U)
+}
