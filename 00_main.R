@@ -511,7 +511,8 @@ print(dm_growth)
 source("05_functions.R")
 U = theils_U(eval_rf = eval_for_rf, eval_arma = eval_for_ar_growth, 5)
 print(U)
-# h = 0,1,3 and 4: rf is slightly better (< 1) 
+# 0.7778764 0.9530716 1.0891255 0.9900943 0.9689348
+# h = 0,1,3, 4: rf is slightly better (< 1) 
 ##############################################################################################
 # converting GDP back (not growth) when rolling window approach was used  
 ##############################################################################################
@@ -621,6 +622,7 @@ print(dm_GDP)
 source("05_functions.R")
 U_gdp = theils_U(eval_rf = eval_for_rf_GDPC1, eval_arma = eval_for_ar, 5)
 print(U_gdp)
+# 1.0899282 0.5644366 1.3361435 1.0620123 0.8926105
 # But: U only for h = 1 < 1, otherwise arma is better
 
 ###############################################################################################
@@ -743,15 +745,17 @@ hyper_test_final_level = readRDS("output/hyper_test_final_level.rda")
 # 2) start: train on 1: 1988Q4, test on 1989 => up to test set: 1999 => yields hyper para for 2001Q1 with 2000Q1
 # really needed? I.E. NEEDED TO  ESTIMATE TEST ERROR BETTER? OR IS LAST BLOCK EVALUATION ENOUGH?
 # for each combination: average error (as in YOON -> k = 10 (CITED IN YOON))
+# but: not needed for rf -> just use oob error 
+
 ##############################################################################################
-# again using rolling window and training new forest for each new window, but this time,
+# again using rolling window and training new forest for each new window, but this time
 # using the tuned hyper parameter from each year before, using the oob error
 ##############################################################################################
 # read hyper parameter list
 hyper_oob_final_growth = readRDS("output/hyperparams_oob_growth.rda") # oob growth
 hyper_oob_final_level = readRDS("output/hyperparams_oob_level.rda") # oob GDP
-hyper_test_final = readRDS("output/hyper_test_final.rda") # test growth
-hyper_test_final_level = readRDS("output/hyper_test_final_level.rda") # test GDP
+# hyper_test_final = readRDS("output/hyper_test_final.rda") # test growth
+# hyper_test_final_level = readRDS("output/hyper_test_final_level.rda") # test GDP
 ### 1) oob error 
 ### 1a) GDP GROWTH
 source("06_rf.R")
@@ -790,27 +794,14 @@ print(eval_for_rf_hyperopt)
 # $rmse
 # [1] 0.01020637 0.01659631 0.01685770 0.01566542 0.01522556
 # 
-# $smins
-# $smins$min_me
-# [1] 1
-# 
-# $smins$min_mse
-# [1] 1
-# 
-# $smins$min_mae
-# [1] 1
-# 
-# $smins$min_rmse
-# [1] 1
 print(eval_for_rf) 
-
 # Theil's U and DM TEST 
 source("05_functions.R")
 ### DM test GDP GROWTH forecasts, for each h 
-dm_growth = dm_tests(gdp = data$GDP_GR[which(data$dates == 2000.00):length(data$dates)], 
+dm_growth_opt = dm_tests(gdp = data$GDP_GR[which(data$dates == 2000.00):length(data$dates)], 
                      h_num = 5,
                      result_rf = rf_rolling_growth_hyperopt, result_arma = result_ar_growth)
-print(dm_growth)
+print(dm_growth_opt)
 # Ho: same forecast accuracy ; H1: rf is more accurate (lower error) than ar
 # H0 cannot be rejected => both same forecast accuracy
 
@@ -863,19 +854,7 @@ print(eval_for_rf_hyperopt_GDP)
 # 
 # $rmse
 # [1] 274.9435 318.3242 614.8092 519.9144 533.2710
-# 
-# $smins
-# $smins$min_me
-# [1] 1
-# 
-# $smins$min_mse
-# [1] 1
-# 
-# $smins$min_mae
-# [1] 1
-# 
-# $smins$min_rmse
-# [1] 1
+#
 print(eval_for_rf_GDPC1) 
 
 # Theil's U and DM TEST 
@@ -906,14 +885,224 @@ print(U_GDP_oob)
 
 ### 2a) GDP GROWTH with test set
 ### 2b) GDP with test set
+##############################################################################################
+# using lagged gdp values as regressors: 4 lags
+##############################################################################################
+source("06_rf.R")
+set.seed(501)
+rf_rolling_growth_hyperopt_lag = rf_plain_rolling_hyperopt_lag(df = data, # exclude data column and GDPC1
+                                                       gdp = data$GDP_GR, ntrees = 500, forh,
+                                                       hyper_para_list = hyper_oob_final_growth)
+head(rf_rolling_growth_hyperopt_lag)
+# plotting the different forecasts
+source("04_plots.R")
+par(mfrow = c(1, 1))
+for (j in 1:5) {
+  gdp_growth_forecast_plot(data$GDP_GR, gdp_forecast = rf_rolling_growth_hyperopt_lag[,(2*j-1)], 
+                           se = sd(rf_rolling_growth_hyperopt_lag[,(2*j-1)]), 
+                           title = paste0("oos_growth_forecasts_rf_plain, h=",j-1), 
+                           ylab = "gdp growth", col = "green", 
+                           CI = FALSE)
+  print(head(rf_rolling_growth_hyperopt_lag[,(2*j-1)])) # printing first forecast
+  print(sd(rf_rolling_growth_hyperopt_lag[,(2*j-1)])) # printing standard error 
+}
+# evaluate forecasts
+source("05_functions.R")
+eval_for_rf_hyperopt_lag = eval_forc_rf(rf_rolling_growth_hyperopt_lag, forh)
+print(eval_for_rf_hyperopt_lag)
+# $me
+# [1] 0.0006840696 0.0009652729 0.0020104620 0.0014769741 0.0015933435
+# 
+# $mse
+# [1] 0.0001044584 0.0002841731 0.0002843995 0.0002477063 0.0002333367
+# 
+# $mae
+# [1] 0.002523138 0.006624914 0.006612777 0.006833809 0.006962310
+# 
+# $rmse
+# [1] 0.01022049 0.01685743 0.01686415 0.01573869 0.01527536
+# print(eval_for_rf_hyperopt) 
+source("05_functions.R")
+### DM test GDP GROWTH forecasts, for each h 
+dm_growth_opt_lag = dm_tests(gdp = data$GDP_GR[which(data$dates == 2000.00):length(data$dates)], 
+                         h_num = 5,
+                         result_rf = rf_rolling_growth_hyperopt_lag, result_arma = result_ar_growth)
+print(dm_growth_opt_lag)
+# Ho: same forecast accuracy ; H1: rf is more accurate (lower error) than ar
+# h = 0 -> H0 rejected now 
 
+### Theil's U
+source("05_functions.R")
+U_growth_opt_lag = theils_U(eval_rf = eval_for_rf_hyperopt_lag, eval_arma = eval_for_ar_growth, 5)
+print(U_growth_opt_lag)
+# 0.7778656 0.9474067 1.0596523 0.9903025 0.9616208
+# Values slightly higher compared to eval_for_rf_hyperopt without lag
 
+# U against rf_without hyper parameter:
+U_oob_lag = theils_U(eval_rf = eval_for_rf_hyperopt_lag, eval_arma = eval_for_rf_hyperopt, 5)
+print(U_oob_lag)
+# 1.001384 1.015734 1.000383 1.004677 1.003271
+# no improvement
+
+### GDP
+source("06_rf.R")
+set.seed(501)
+rf_rolling_hyperopt_level_lag = rf_GDP_rolling_hyperopt(df = data, gdp = data$GDPC1, ntrees = 500, forh,
+                                                    hyper_para_list = hyper_oob_final_level, 
+                                                    xi = data$GDPC1[data$dates == 2000.00])
+#result_rf_hyperopt_level = feed_in(result = rf_rolling_hyperopt_level, gdp = data$GDPC1, h_max, forh)
+head(rf_rolling_hyperopt_level_lag)
+# plotting the different forecasts
+source("04_plots.R")
+par(mfrow = c(1, 1))
+for (j in 1:5) {
+  gdp_growth_forecast_plot(data$GDPC1, gdp_forecast = rf_rolling_hyperopt_level_lag[,(2*j-1)], 
+                           se = sd(rf_rolling_hyperopt_level_lag[,(2*j-1)]), 
+                           title = paste0("oos_growth_forecasts_rf_plain, h=",j-1), 
+                           ylab = "gdp growth", col = "green", 
+                           CI = FALSE)
+  print(head(rf_rolling_hyperopt_level_lag[,(2*j-1)])) # printing first forecast
+  print(sd(rf_rolling_hyperopt_level_lag[,(2*j-1)])) # printing standard error 
+}
+# evaluate forecasts
+source("05_functions.R")
+eval_for_rf_hyperopt_GDP_lag = eval_forc_rf(rf_rolling_hyperopt_level_lag, forh)
+print(eval_for_rf_hyperopt_GDP_lag)
+# $me
+# [1]  71.94328 108.55501 511.75831 403.70682 422.44429
+# 
+# $mse
+# [1]  75593.92 101330.27 377990.37 270310.97 284377.95
+# 
+# $mae
+# [1] 180.6950 217.6207 512.2799 412.0462 425.4367
+# 
+# $rmse
+# [1] 274.9435 318.3242 614.8092 519.9144 533.2710
+# print(eval_for_rf_GDPC1) 
+
+source("05_functions.R")
+### DM test GDP GROWTH forecasts, for each h 
+dm_GDP_oob_lag = dm_tests(gdp = data$GDPC1[which(data$dates == 2000.00):length(data$dates)], 
+                      h_num = 5,
+                      result_rf = rf_rolling_hyperopt_level_lag, result_arma = result_ar)
+print(dm_GDP_oob_lag)
+# Ho: same forecast accuracy ; H1: rf is more accurate (lower error) than ar
+# H0 can be rejected for all h => rf also better
+
+### Theil's U
+source("05_functions.R")
+U_GDP_opt_lag = theils_U(eval_rf = eval_for_rf_hyperopt_GDP_lag, eval_arma = eval_for_ar, 5)
+print(U_GDP_opt_lag)
+# 1.0168767 0.5609236 1.5326569 1.0724713 1.0469221
+# only for h = 1 rf better, otherwise worse
+
+# U against rf_without hyper parameter:
+U_GDP_oob_lag = theils_U(eval_rf = eval_for_rf_hyperopt_GDP_lag, eval_arma = eval_for_rf_hyperopt_GDP, 5)
+print(U_GDP_oob)
+# 0.9329759 0.9937761 1.1470751 1.0098483 1.1728768
+# for h = 1,2 slightly better, for other forecasts worse 
 
 ##############################################################################################
 # using rangerts, i.e. ordered boostrapping
+# using optimal oob hyper parameters from before for each year 
+# instead of samp_size, block size is now used
+# block_size determines the number of observations per block , default value is 10
+# again hyper parameter training to get optimal block size (instead samp.size now )
+##############################################################################################
+mtry_grid = seq(5, ncol(data[,-c(1,2,3)]), 2) # start with 5 split variables, than increase up to p (bagging) by 2
+block_size_grid = seq(4,80,4) # from 1 year (4 quarters) to 20 years (80 quarters) per block
+node_size_grid = seq(3,9, 2)
+### 1) GDP GROWTH oob error
 
-# 1) rolling window for GDP and GDP growth -> already better 
-# 2) hyperparameter tuning for GDP and GDP growth 
+hyper_oob_final_growth_ts = list()
+
+source("06_rf.R")
+Sys.time()
+start_time = Sys.time()
+# for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
+hyper_oob_final_growth_ts = rf_ranger_oob_ts(df = data, mtry_grid, block_size_grid, node_size_grid, 
+                                       500, hyper_para_list = hyper_oob_final_growth_ts)
+
+saveRDS(hyper_oob_final_growth_ts, file = "output/hyperparams_oob_growth_ts.rda") # save hyper_oob_final 
+end_time = Sys.time()
+print(paste("estimation time: ", end_time-start_time))
+
+
+### 1b) GDP
+hyper_oob_final_level_ts = list()
+source("06_rf.R")
+Sys.time()
+start_time = Sys.time()
+# for the tuning: using the ranger package: C++ implementation of Breiman rf => computationally more efficient
+hyper_oob_final_level_ts = rf_ranger_oob_level_ts(df = data, mtry_grid, block_size_grid, node_size_grid, 
+                                            500, hyper_para_list = hyper_oob_final_level_ts,
+                                            gdp = data$GDPC1)
+
+saveRDS(hyper_oob_final_level_ts, file = "output/hyperparams_oob_level_ts.rda") # save hyper_oob_final 
+end_time = Sys.time()
+print(paste("estimation time: ", end_time-start_time))
+
+##############################################################################################
+# using optimal hyperparameter now
+##############################################################################################
+# read opt. hyperparams
+hyper_oob_final_growth_ts = readRDS("output/hyperparams_oob_growth_ts.rda") # oob growth
+hyper_oob_final_level_ts = readRDS("output/hyperparams_oob_level_ts.rda") # oob GDP
+
+# 1a) GDP GROWTH
+source("06_rf.R")
+set.seed(501)
+rf_rolling_growth_hyperopt_ts = rf_plain_rolling_hyperopt_ts(df = data, # exclude data column and GDPC1
+                                                       gdp = data$GDP_GR, ntrees = 500, forh,
+                                                       hyper_para_list = hyper_oob_final_growth_ts,
+                                                       block_size = 10)
+head(rf_rolling_growth_hyperopt_ts)
+# plotting the different forecasts
+source("04_plots.R")
+par(mfrow = c(1, 1))
+for (j in 1:5) {
+  gdp_growth_forecast_plot(data$GDP_GR, gdp_forecast = rf_rolling_growth_hyperopt_ts[,(2*j-1)], 
+                           se = sd(rf_rolling_growth_hyperopt_ts[,(2*j-1)]), 
+                           title = paste0("oos_growth_forecasts_rf_plain, h=",j-1), 
+                           ylab = "gdp growth", col = "green", 
+                           CI = FALSE)
+  print(head(rf_rolling_growth_hyperopt_ts[,(2*j-1)])) # printing first forecast
+  print(sd(rf_rolling_growth_hyperopt_ts[,(2*j-1)])) # printing standard error 
+}
+# evaluate forecasts
+source("05_functions.R")
+eval_for_rf_hyperopt_ts = eval_forc_rf(rf_rolling_growth_hyperopt_ts, forh)
+print(eval_for_rf_hyperopt_ts)
+
+
+print(eval_for_rf_hyperopt) 
+
+# Theil's U and DM TEST 
+source("05_functions.R")
+### DM test GDP GROWTH forecasts, for each h 
+dm_growth_ts = dm_tests(gdp = data$GDP_GR[which(data$dates == 2000.00):length(data$dates)], 
+                     h_num = 5,
+                     result_rf = rf_rolling_growth_hyperopt_ts, result_arma = result_ar_growth)
+print(dm_growth_ts)
+
+
+### Theil's U
+source("05_functions.R")
+U_growth_opt = theils_U(eval_rf = eval_for_rf_hyperopt_ts, eval_arma = eval_for_ar_growth, 5)
+print(U_growth_opt)
+
+# U against rf_without blocked boostrapping:
+U_oob = theils_U(eval_rf = eval_for_rf_hyperopt_ts, eval_arma = eval_for_rf_hyperopt, 5)
+print(U_oob)
+
+### 1b) GDP 
+
+
+##############################################################################################
+# plot forecasts of all models for each horizon 
+
+
 
 ### to do:
 # plots in paper with qqplot 

@@ -98,55 +98,7 @@ rf_plain_rolling = function(df, gdp, ntrees, mtry, forh) {
 
   return(result)
 }
-# old (04.10)
-# rf_plain_rolling = function(df, gdp, ntrees, mtry, forh) {
-#   N = length(df[,2]) # length of time series
-#   Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
-#   print(paste0("N=", N))
-#   print(paste0("Nin=", Nin))
-#   
-#   # initializing
-#   result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
-#   
-#   # loop over each quarter from 2000 up to 2022,
-#   # doing a direct oos forecast for each horizon h
-#   col_counter = 1
-#   # for (h in c(0, forh)) {
-#   for (h in forh) {  # h = 1,...,4
-#     h = 1
-#     print(paste0("h=", h))
-#     X = df[1:(nrow(df)-h),-2]  # y_t+h = f(y_t,X_t), excluding GDPCR
-#     y = df[(1+h):nrow(df),c(1,3)] # GDP target 
-#     
-#     # for (i in Nin:(N-h)) {
-#     for (i in Nin:(N)) {
-#       # estimate rf again each quarter using new model (but same hyper parameters)
-#       # for each iteration: have a new dataframe
-#       X_train = X[1:(i-h),]
-#       y_train = y[1:(i-h),]
-#       browser()
-#       # train rf using values up to current window 
-#       rand_forest = ranger::ranger(x = X_train[-nrow(X_train),-1],
-#                                    y = y_train[-nrow(y_train),-1],
-#                                    mtry = mtry,
-#                                    importance = "none",
-#                                    num.trees = ntrees)
-#       # compute forecast, aka fitted value for current i & save
-#       y_hat = predict(rand_forest, X_train[nrow(X_train), -1])
-#       p = y_hat$predictions
-#       # p = rand_forest$predictions[length(rand_forest$predictions)] 
-#       result[i-Nin+1,col_counter] = p
-#     }
-#     browser()
-#     col_counter = col_counter + 2
-#     print(result)
-#   }
-#   colnames(result) =  c("gdp forecast h=0", "gdp",
-#                         "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
-#                         "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
-#   
-#   return(result)
-# }
+
 ##############################################################################################
 # forecasting GDP (NOT growth) with rf using rolling window with a-priori specification
 ##############################################################################################
@@ -212,65 +164,7 @@ rf_rolling_GDP = function(df, gdp, ntrees, mtry, forh, xi) {
   
   return(result)
 }
-# # old
-# rf_rolling_GDP = function(df, gdp, ntrees, mtry, forh, xi) {
-#   # first differencing
-#   gdp_d = diff(gdp) # 1st differencing ts
-#   gdp_ct = gdp_d - mean(gdp_d) # centering ts
-#   # loosing one observation: hence also need to delete first observation in regressor data
-#   df = df[-1,]
-#   df$GDPC1 = gdp_ct # use differencend ts for training
-#   
-#   N = length(df[,2]) # length of time series
-#   Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
-#   print(paste0("N=", N))
-#   print(paste0("Nin=", Nin))
-#   
-#   # initializing
-#   result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
-#   
-#   # loop over each quarter from 2000 up to 2022,
-#   # doing a direct oos forecast for each horizon h
-#   col_counter = 1
-#   for (h in c(0, forh)) {
-#     print(paste0("h=", h))
-#     X = df[1:(nrow(df)-h),-3]  # y_t+h = f(y_t,X_t), excluding GDP growth rate
-#     y = cbind(df[(1+h):nrow(df),1] ,gdp_ct[(1+h):nrow(df)]) # GDP target 
-#     for (i in Nin:(N-h)) {
-#       # estimate rf again each quarter using new model (but same hyper parameters)
-#       # for each iteration: have a new dataframe
-#       X_train = X[1:(i-h),]
-#       y_train = y[1:(i-h),]
-#       # train rf using values up to current window 
-#       rand_forest = ranger::ranger(x = X_train[,-1],
-#                                    y = y_train[,-1],
-#                                    mtry = mtry,
-#                                    importance = "none",
-#                                    num.trees = ntrees)
-#       # compute fitted value (of current Nin) & save
-#       p = rand_forest$predictions[length(rand_forest$predictions)] 
-#       result[i-Nin+1,col_counter] = p
-#       
-#     }
-#     col_counter = col_counter + 2
-#     print(result)
-#   }
-#   # compute gdp values back (not differenced ts)
-#   for (i in (seq(1, ncol(result), 2))) { # for each 2nd column: compute inverse of diff. operation
-#     result[,i] =  diffinv(result[,i] + mean(gdp_d), xi = xi)[-1]
-#     # xi is the starting value of the differenced series (gdp) + adding mean again (non_centered)
-#   }
-#   # # compute gdp values back (not differenced ts)
-#   # for (i in (seq(1, ncol(result), 2))) { # for each 2nd column: compute inverse of diff. operation
-#   #   result[,i] =  diffinv(result[,i], xi = xi)[-1]
-#   #   # xi is the starting value of the differenced series (gdp) 
-#   # }
-#   colnames(result) =  c("gdp forecast h=0", "gdp",
-#                         "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
-#                         "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
-#   
-#   return(result)
-# }
+
 
 ##############################################################################################
 # forecasting GDP (not growth) with rf using hp filter 
@@ -378,7 +272,7 @@ rf_ranger_oob = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, h
   }
   return(hyper_para_list)
 }
-############################################################################## 
+
 ### 1b) oob for GDP 
 rf_ranger_oob_level = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, hyper_para_list,
                                gdp){
@@ -553,55 +447,55 @@ rf_hyper_test_set_level = function(df, mtry_grid, samp_size_grid, node_size_grid
 
 ########################################################################
 ### hc-cv ?????
-rf_ranger_oob_prewindow = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, h_max){
-  N = nrow(df) # length of time series
-  Nin = N - h_max # length of in sample observations (each quarter)
-  Nin_year = seq(from = Nin+1, to = N, by = 1) # incrementing each quarter
-  # using each new quarter from 1990 to 2000
-  
-  rf_hyper = data.frame(matrix(ncol = 4, nrow = 0)) 
-  colnames(rf_hyper) = c("Error", "mtry","samp_size", "node_size")
-  count_hyper = 1
-  
-  for (mtry in mtry_grid) {
-    for (samp_size in samp_size_grid) {
-      for (node_size in node_size_grid) {
-        # initialize accuracy matrix for current hyperparameter combination
-        rf_acc = data.frame(matrix(ncol = 4, nrow = 0)) 
-        colnames(rf_acc) = c("Error", "mtry","samp_size", "node_size")
-        count = 1 # counter for the rows
-        
-        # fit rf for current hyper parameter combination and evaluate, iteratively
-        for (year in Nin_year) {
-          current_df = df[1:year,]
-          # browser()
-          forest = ranger(formula = GDP_GR ~.,
-                             data = current_df[,-c(1,3)], ntree = ntree, 
-                             mtry = mtry, samp_frac = samp_size, node_size = node_size)
-          # store error for current hyper param combination, for each quarter
-          rf_acc[count,"Error"] = forest$prediction.error # extract overall oob error, i.e. mse
-          rf_acc[count, "mtry"] = mtry
-          rf_acc[count, "samp_size"] = samp_size
-          rf_acc[count, "node_size"] = node_size
-          
-          count = count + 1
-        }
-        # compute cv error (average_error) for the current hyper parameter combination
-        rf_hyper[count_hyper, "Error"] = mean(rf_acc[,1])
-        rf_hyper[count_hyper, "mtry"] = mtry
-        rf_hyper[count_hyper, "samp_size"] = samp_size
-        rf_hyper[count_hyper, "node_size"] = node_size
-        count_hyper = count_hyper + 1
-        
-        if (count_hyper == 10) {
-          browser()
-        }
-        
-        }
-      }
-    }
-    return(rf_hyper)
-}
+# rf_ranger_oob_prewindow = function(df, mtry_grid, samp_size_grid, node_size_grid, ntree, h_max){
+#   N = nrow(df) # length of time series
+#   Nin = N - h_max # length of in sample observations (each quarter)
+#   Nin_year = seq(from = Nin+1, to = N, by = 1) # incrementing each quarter
+#   # using each new quarter from 1990 to 2000
+#   
+#   rf_hyper = data.frame(matrix(ncol = 4, nrow = 0)) 
+#   colnames(rf_hyper) = c("Error", "mtry","samp_size", "node_size")
+#   count_hyper = 1
+#   
+#   for (mtry in mtry_grid) {
+#     for (samp_size in samp_size_grid) {
+#       for (node_size in node_size_grid) {
+#         # initialize accuracy matrix for current hyperparameter combination
+#         rf_acc = data.frame(matrix(ncol = 4, nrow = 0)) 
+#         colnames(rf_acc) = c("Error", "mtry","samp_size", "node_size")
+#         count = 1 # counter for the rows
+#         
+#         # fit rf for current hyper parameter combination and evaluate, iteratively
+#         for (year in Nin_year) {
+#           current_df = df[1:year,]
+#           # browser()
+#           forest = ranger(formula = GDP_GR ~.,
+#                              data = current_df[,-c(1,3)], ntree = ntree, 
+#                              mtry = mtry, samp_frac = samp_size, node_size = node_size)
+#           # store error for current hyper param combination, for each quarter
+#           rf_acc[count,"Error"] = forest$prediction.error # extract overall oob error, i.e. mse
+#           rf_acc[count, "mtry"] = mtry
+#           rf_acc[count, "samp_size"] = samp_size
+#           rf_acc[count, "node_size"] = node_size
+#           
+#           count = count + 1
+#         }
+#         # compute cv error (average_error) for the current hyper parameter combination
+#         rf_hyper[count_hyper, "Error"] = mean(rf_acc[,1])
+#         rf_hyper[count_hyper, "mtry"] = mtry
+#         rf_hyper[count_hyper, "samp_size"] = samp_size
+#         rf_hyper[count_hyper, "node_size"] = node_size
+#         count_hyper = count_hyper + 1
+#         
+#         if (count_hyper == 10) {
+#           browser()
+#         }
+#         
+#         }
+#       }
+#     }
+#     return(rf_hyper)
+# }
 
 #########################################################################
 # again rf with rolling window, but now using optimal parameter specification for each year
@@ -625,7 +519,7 @@ rf_plain_rolling_hyperopt = function(df, gdp, ntrees, forh,
   for (h in c(0, forh)) {
     print(paste0("h=", h))
     X = df[1:(nrow(df)-h),-2]  # y_t+h = f(y_t,X_t), excluding GDPCR
-    y = df[(1+h):nrow(df),c(1,3)] # GDP target 
+    y = df[(1+h):nrow(df),c(1,3)] # GDP growth target 
     
     # initial hyper parameters for each horizon
     count_year = 1
@@ -677,71 +571,6 @@ rf_plain_rolling_hyperopt = function(df, gdp, ntrees, forh,
   
   return(result)
 }
-# old 
-# rf_plain_rolling_hyperopt = function(df, gdp, ntrees, forh,
-#                                      hyper_para_list) {
-#   N = length(df[,2]) # length of time series
-#   Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
-#   print(paste0("N=", N))
-#   print(paste0("Nin=", Nin))
-#   
-#   # initializing
-#   result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
-#   
-#   # loop over each quarter from 2000 up to 2022,
-#   # doing a direct oos forecast for each horizon h
-#   col_counter = 1
-# 
-#   
-#   for (h in c(0, forh)) {
-#     print(paste0("h=", h))
-#     X = df[1:(nrow(df)-h),-2]  # y_t+h = f(y_t,X_t), excluding GDPCR
-#     y = df[(1+h):nrow(df),c(1,3)] # GDP target 
-#     
-#     # initial hyper parameters for each horizon
-#     count_year = 1
-#     para_count = 1
-#     mtry = hyper_para_list[[para_count]]$mtry
-#     samp_size = hyper_para_list[[para_count]]$samp_size
-#     node_size = hyper_para_list[[para_count]]$node_size
-#     # print(paste0("current hyperparameters: ", " mtry: ",mtry, 
-#     #              " samp_size: ",samp_size, " node_size: ", node_size))
-#     
-#     for (i in Nin:(N-h)) {
-#       # estimate rf again each quarter using new model (but same hyper parameters)
-#       # for each iteration: have a new data frame
-#       X_train = X[1:(i-h),]
-#       y_train = y[1:(i-h),]
-#       # train rf using values up to current window 
-#       rand_forest = ranger::ranger(x = X_train[,-1],
-#                                    y = y_train[,-1],
-#                                    importance = "none",
-#                                    num.trees = ntrees,
-#                                    mtry = mtry, sample.fraction = samp_size, min.node.size = node_size)
-#       # compute fitted value (of current Nin) & save
-#       p = rand_forest$predictions[length(rand_forest$predictions)] 
-#       result[i-Nin+1,col_counter] = p
-#       if (count_year == 4) {
-#         para_count = para_count + 1
-#         mtry = hyper_para_list[[para_count]]$mtry
-#         samp_size = hyper_para_list[[para_count]]$samp_size
-#         node_size = hyper_para_list[[para_count]]$node_size
-#         # print(paste0("current hyperparameters: ", " mtry: ",mtry, 
-#         #              " samp_size: ",samp_size, " node_size: ", node_size))
-#         count_year = 0 # reset year counter when hyper parameter changend
-#       }
-#       count_year = count_year + 1
-# 
-#     }
-#     col_counter = col_counter + 2
-#     print(result)
-#   }
-#   colnames(result) =  c("gdp forecast h=0", "gdp",
-#                         "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
-#                         "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
-#   
-#   return(result)
-# }
 
 ### using GDP level values
 rf_GDP_rolling_hyperopt = function(df, gdp, ntrees, forh,
@@ -823,77 +652,356 @@ rf_GDP_rolling_hyperopt = function(df, gdp, ntrees, forh,
   
   return(result)
 }
-# old
-# rf_GDP_rolling_hyperopt = function(df, gdp, ntrees, forh,
-#                                    hyper_para_list, xi) {
-#   # first differencing
-#   gdp_d = diff(gdp) # 1st differencing ts
-#   gdp_ct = gdp_d - mean(gdp_d) # centering ts
-#   # loosing one observation: hence also need to delete first observation in regressor data
-#   df = df[-1,]
-#   df$GDPC1 = gdp_ct # use differencend ts for training
-#   
-#   N = length(df[,2]) # length of time series
-#   Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
-#   print(paste0("N=", N))
-#   print(paste0("Nin=", Nin))
-#   
-#   # initializing
-#   result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
-#   
-#   # loop over each quarter from 2000 up to 2022,
-#   # doing a direct oos forecast for each horizon h
-#   col_counter = 1
-#   for (h in c(0, forh)) {
-#     print(paste0("h=", h))
-#     X = df[1:(nrow(df)-h),-3]  # y_t+h = f(y_t,X_t), excluding Growth
-#     y = cbind(df[(1+h):nrow(df),1] ,gdp_ct[(1+h):nrow(df)]) # GDP target 
-#     
-#     # initial hyper parameters for each horizon
-#     count_year = 1
-#     para_count = 1
-#     mtry = hyper_para_list[[para_count]]$mtry
-#     samp_size = hyper_para_list[[para_count]]$samp_size
-#     node_size = hyper_para_list[[para_count]]$node_size
-#     
-#     for (i in Nin:(N-h)) {
-#       # estimate rf again each quarter using new model (but same hyper parameters)
-#       # for each iteration: have a new dataframe
-#       X_train = X[1:(i-h),]
-#       y_train = y[1:(i-h),]
-#       # train rf using values up to current window 
-#       rand_forest = ranger::ranger(x = X_train[,-1],
-#                                    y = y_train[,-1],
-#                                    importance = "none",
-#                                    num.trees = ntrees,
-#                                    mtry = mtry, sample.fraction = samp_size, min.node.size = node_size)
-#       # compute fitted value (of current Nin) & save
-#       p = rand_forest$predictions[length(rand_forest$predictions)] 
-#       result[i-Nin+1,col_counter] = p
-#       if (count_year == 4) {
-#         para_count = para_count + 1
-#         mtry = hyper_para_list[[para_count]]$mtry
-#         samp_size = hyper_para_list[[para_count]]$samp_size
-#         node_size = hyper_para_list[[para_count]]$node_size
-#         # print(paste0("current hyperparameters: ", " mtry: ",mtry, 
-#         #              " samp_size: ",samp_size, " node_size: ", node_size))
-#         count_year = 0 # reset year counter when hyper parameter changend
-#       }
-#       count_year = count_year + 1
-#       
-#     }
-#     col_counter = col_counter + 2
-#     print(result)
-#   }
-#   # compute gdp values back (not differenced ts)
-#   for (i in (seq(1, ncol(result), 2))) { # for each 2nd column: compute inverse of diff. operation
-#     result[,i] =  diffinv(result[,i] + mean(gdp_d), xi = xi)[-1]
-#     # xi is the starting value of the differenced series (gdp) + adding mean again (non_centered)
-#   }
-#   
-#   colnames(result) =  c("gdp forecast h=0", "gdp",
-#                         "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
-#                         "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
-#   
-#   return(result)
-# }
+#########################################################################
+# lagged gdp values: lags= 1,...,4
+#########################################################################
+rf_plain_rolling_hyperopt_lag = function(df, gdp, ntrees, forh,
+                                     hyper_para_list) {
+  # create 4 new ts with lagged gdp values from t-1 up to t-4
+  y_lag = embed(gdp, dimension = 5)  
+  y_lag = y_lag[,-1] # exclude gdp column
+  colnames(y_lag) = c("t-1", "t-2", "t-3", "t-4")
+  # create new dataframe now with lagged gdp values, loosing first 4 observations
+  df = cbind(df[5:nrow(df),1:3],y_lag,df[5:nrow(df),-(1:3)]) 
+
+  N = length(df[,2]) # length of time series
+  Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
+  print(paste0("N=", N))
+  print(paste0("Nin=", Nin))
+  
+  # initializing
+  result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
+  
+  # loop over each quarter from 2000 up to 2022,
+  # doing a direct oos forecast for each horizon h
+  col_counter = 1
+  
+  for (h in c(0, forh)) {
+    print(paste0("h=", h))
+    X = df[1:(nrow(df)-h),-2]  # y_t+h = f(y_t,X_t, y_t-1,y_t-2,..), excluding GDPCR
+    y = df[(1+h):nrow(df),c(1,3)] # GDP growth target 
+    
+    # initial hyper parameters for each horizon
+    count_year = 1
+    para_count = 1
+    mtry = hyper_para_list[[para_count]]$mtry
+    samp_size = hyper_para_list[[para_count]]$samp_size
+    node_size = hyper_para_list[[para_count]]$node_size
+    
+    for (i in Nin:(N)) {
+      # estimate rf again each quarter using new model (but same hyper parameters)
+      # for each iteration: have a new dataframe
+      X_train = X[1:(i-h),]
+      y_train = y[1:(i-h),]
+      # train rf using values up to current window 
+      rand_forest = ranger::ranger(x = X_train[-nrow(X_train),-1], # excluding last training row
+                                   y = y_train[-nrow(y_train),-1],
+                                   importance = "none",
+                                   num.trees = ntrees,
+                                   mtry = mtry, sample.fraction = samp_size, min.node.size = node_size)
+      # compute forecast, aka fitted value for current i & save
+      # use the last "currently known" value in the window to get the fitted value / forecast
+      y_hat = predict(rand_forest, X_train[nrow(X_train), -1])
+      p = y_hat$predictions
+      result[i-Nin+1,col_counter] = p
+      
+      if (count_year == 4) {
+        para_count = para_count + 1
+        mtry = hyper_para_list[[para_count]]$mtry
+        samp_size = hyper_para_list[[para_count]]$samp_size
+        node_size = hyper_para_list[[para_count]]$node_size
+        # print(paste0("current hyperparameters: ", " mtry: ",mtry, 
+        #              " samp_size: ",samp_size, " node_size: ", node_size))
+        count_year = 0 # reset year counter when hyper parameter changend
+      }
+      count_year = count_year + 1
+      
+    }
+    col_counter = col_counter + 2
+    print(result)
+  }
+  colnames(result) =  c("gdp forecast h=0", "gdp",
+                        "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
+                        "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
+  
+  # insert true gdp values from 2000Q1 up to 2021Q4
+  result[,c(2,4,6,8,10)] = df$GDP_GR[which(df$dates == 2000.00):length(df$GDP_GR)]
+  
+  return(result)
+}
+
+### GDP
+rf_GDP_rolling_hyperopt_lag = function(df, gdp, ntrees, forh,
+                                         hyper_para_list) {
+  
+  # create 4 new ts with lagged gdp values from t-1 up to t-4
+  y_lag = embed(gdp, dimension = 5)  
+  y_lag = y_lag[,-1] # exclude gdp column
+  colnames(y_lag) = c("t-1", "t-2", "t-3", "t-4")
+  # create new dataframe now with lagged gdp values, loosing first 4 observations
+  df = cbind(df[5:nrow(df),1:3],y_lag,df[5:nrow(df),-(1:3)]) 
+  
+  # first differencing
+  gdp_d = diff(df$GDPC1) # 1st differencing ts
+  gdp_ct = gdp_d - mean(gdp_d) # centering ts
+  # loosing one observation: hence also need to delete first observation in regressor data
+  df = df[-1,]
+  df$GDPC1 = gdp_ct # use differencend ts for training
+  
+  N = length(df[,2]) # length of time series
+  Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
+  print(paste0("N=", N))
+  print(paste0("Nin=", Nin))
+  
+  # initializing
+  result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
+  
+  # loop over each quarter from 2000 up to 2022,
+  # doing a direct oos forecast for each horizon h
+  col_counter = 1
+  
+  
+  for (h in c(0, forh)) {
+    print(paste0("h=", h))
+    X = df[1:(nrow(df)-h),-3]  # y_t+h = f(y_t,X_t, y_t-1,y_t-2,..), excluding growth rate
+    y = df[(1+h):nrow(df),c(1,2)] # GDP target 
+    
+    # initial hyper parameters for each horizon
+    count_year = 1
+    para_count = 1
+    mtry = hyper_para_list[[para_count]]$mtry
+    samp_size = hyper_para_list[[para_count]]$samp_size
+    node_size = hyper_para_list[[para_count]]$node_size
+    
+    for (i in Nin:(N)) {
+      # estimate rf again each quarter using new model (but same hyper parameters)
+      # for each iteration: have a new dataframe
+      X_train = X[1:(i-h),]
+      y_train = y[1:(i-h),]
+      # train rf using values up to current window 
+      rand_forest = ranger::ranger(x = X_train[-nrow(X_train),-1], # excluding last training row
+                                   y = y_train[-nrow(y_train),-1],
+                                   importance = "none",
+                                   num.trees = ntrees,
+                                   mtry = mtry, sample.fraction = samp_size, min.node.size = node_size)
+      # compute forecast, aka fitted value for current i & save
+      # use the last "currently known" value in the window to get the fitted value / forecast
+      y_hat = predict(rand_forest, X_train[nrow(X_train), -1])
+      p = y_hat$predictions
+      result[i-Nin+1,col_counter] = p
+      
+      if (count_year == 4) {
+        para_count = para_count + 1
+        mtry = hyper_para_list[[para_count]]$mtry
+        samp_size = hyper_para_list[[para_count]]$samp_size
+        node_size = hyper_para_list[[para_count]]$node_size
+        # print(paste0("current hyperparameters: ", " mtry: ",mtry, 
+        #              " samp_size: ",samp_size, " node_size: ", node_size))
+        count_year = 0 # reset year counter when hyper parameter changend
+      }
+      count_year = count_year + 1
+      
+    }
+    col_counter = col_counter + 2
+    print(result)
+  }
+  # compute gdp values back (not differenced ts)
+  for (i in (seq(1, ncol(result), 2))) { # for each 2nd column: compute inverse of diff. operation
+    result[,i] =  diffinv(result[,i] + mean(gdp_d), xi = xi)[-1]
+    # xi is the starting value of the differenced series (gdp) + adding mean again (non_centered)
+  }  
+  colnames(result) =  c("gdp forecast h=0", "gdp",
+                        "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
+                        "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
+  
+  # insert true gdp values from 2000Q1 up to 2021Q4
+  result[,c(2,4,6,8,10)] = df$GDPC1[which(df$dates == 2000.00):length(df$GDP_GR)]
+  
+  return(result)
+}
+#########################################################################
+# hyper parameter tunung now for block size instead samp size
+#########################################################################
+
+### 1a) oob for GDP GROWTH
+rf_ranger_oob_ts = function(df, mtry_grid, block_size_grid, node_size_grid, ntree, hyper_para_list){
+  N = length(df[,2]) # length of time series
+  Nin = N - (N - which(df[,1] == 1999.00)) # length of in sample observations 
+  print(paste0("N=", N))
+  print(paste0("Nin=", Nin))
+  
+  Nin_year = seq(from = Nin, to = N, by = 4) # starting at first quarter of each new year, from 1998 up to 2022
+  # print(paste0("Nin_year =", Nin_year))
+  
+  counter_year = 1
+  # always append next 4 quarters and compute oob error for each new year (for each hyper parameter combination)
+  for (year in Nin_year) {
+    current_df = df[1:(year-1),]
+    print(paste0("Current df up to: ", df[(year),1]))
+    # initialize accuracy matrix for current year
+    rf_acc = data.frame(matrix(ncol = 4, nrow = 0)) 
+    colnames(rf_acc) = c("Error", "mtry","block_size", "node_size")
+    count = 1 # counter for the rows
+    # hyper parameter grids
+    for (mtry in mtry_grid) {
+      for (block_size in block_size_grid) {
+        for (node_size in node_size_grid) {
+          # set.seed(123) - setting the seed here always gives the same error result
+          forest = rangerts(x = current_df[,-c(1,2,3)], y = current_df$GDP_GR,
+                          num.trees = ntree, 
+                          bootstrap.ts = "stationary" ,
+                          mtry = mtry, min.node.size = node_size,
+                          block.size = block_size)
+          
+          # store error for current hyper parameter combination
+          rf_acc[count,"Error"] = forest$prediction.error # extract oob error
+          rf_acc[count, "mtry"] = mtry
+          rf_acc[count, "block_size"] = block_size
+          rf_acc[count, "node_size"] = node_size
+          
+          count = count + 1
+        }
+      }
+    }
+    # extract optimal hyper parameter for the current year and save it into the list
+    hyper_para_list[[counter_year]] = rf_acc[which.min(rf_acc[,1]),]
+    print(hyper_para_list)
+    counter_year = counter_year + 1
+  }
+  return(hyper_para_list)
+}
+
+### 1b) oob for GDP 
+rf_ranger_oob_level_ts = function(df, mtry_grid, block_size_grid, node_size_grid, ntree, hyper_para_list,
+                               gdp){
+  # first differencing
+  gdp_d = diff(gdp) # 1st differencing ts
+  gdp_ct = gdp_d - mean(gdp_d) # centering ts
+  # loosing one observation: hence also need to delete first observation in regressor data
+  df = df[-1,]
+  df$GDPC1 = gdp_ct # use differencend ts for training
+  
+  N = length(df[,2]) # length of time series
+  Nin = N - (N - which(df[,1] == 1999.00)) # length of in sample observations 
+  print(paste0("N=", N))
+  print(paste0("Nin=", Nin))
+  
+  Nin_year = seq(from = Nin, to = N, by = 4) # starting at first quarter of each new year, from 1999 up to 2022
+  # print(paste0("Nin_year =", Nin_year))
+  
+  counter_year = 1
+  # always append next 4 quarters and compute oob error for each new year (for each hyper parameter combination)
+  for (year in Nin_year) {
+    current_df = df[1:(year-1),]
+    print(paste0("Current df up to: ", df[(year),1]))
+    # initialize accuracy matrix for current year
+    rf_acc = data.frame(matrix(ncol = 4, nrow = 0)) 
+    colnames(rf_acc) = c("Error", "mtry","block_size", "node_size")
+    count = 1 # counter for the rows
+    
+    # hyper parameter grids
+    for (mtry in mtry_grid) {
+      for (block_size in block_size_grid) {
+        for (node_size in node_size_grid) {
+          # set.seed(123) - setting the seed here always gives the same error result
+          forest = rangerts(x = current_df[,-c(1,2,3)], y = current_df$GDPC1,
+                            num.trees = ntree, 
+                            bootstrap.ts = "stationary" ,
+                            mtry = mtry, min.node.size = node_size,
+                            block.size = block_size)
+          
+          # store error for current hyper parameter combination
+          rf_acc[count,"Error"] = forest$prediction.error # extract oob error
+          rf_acc[count, "mtry"] = mtry
+          rf_acc[count, "block_size"] = block_size
+          rf_acc[count, "node_size"] = node_size
+          count = count + 1
+        }
+      }
+    }
+    # extract optimal hyper parameter for the current year and save it into the list
+    hyper_para_list[[counter_year]] = rf_acc[which.min(rf_acc[,1]),]
+    print(hyper_para_list)
+    counter_year = counter_year + 1
+  }
+  return(hyper_para_list)
+}
+
+
+
+
+#########################################################################
+# using rangerts package to perform ordered bootstrapping
+# using optimal block size
+#########################################################################
+rf_plain_rolling_hyperopt_ts = function(df, gdp, ntrees, forh,
+                                     hyper_para_list) {
+  N = length(df[,2]) # length of time series
+  Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
+  print(paste0("N=", N))
+  print(paste0("Nin=", Nin))
+  
+  # initializing
+  result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
+  
+  # loop over each quarter from 2000 up to 2022,
+  # doing a direct oos forecast for each horizon h
+  col_counter = 1
+  
+  for (h in c(0, forh)) {
+    print(paste0("h=", h))
+    X = df[1:(nrow(df)-h),-2]  # y_t+h = f(y_t,X_t), excluding GDPCR
+    y = df[(1+h):nrow(df),c(1,3)] # GDP target 
+    
+    # initial hyper parameters for each horizon
+    count_year = 1
+    para_count = 1
+    mtry = hyper_para_list[[para_count]]$mtry
+    block_size = hyper_para_list[[para_count]]$block_size
+    node_size = hyper_para_list[[para_count]]$node_size
+    
+    for (i in Nin:(N)) {
+      # estimate rf again each quarter using new model (but same hyper parameters)
+      # for each iteration: have a new dataframe
+      X_train = X[1:(i-h),]
+      y_train = y[1:(i-h),]
+      # train rf using values up to current window 
+      rand_forest = rangerts(x = X_train[-nrow(X_train),-1], # excluding last training row
+                                   y = y_train[-nrow(y_train),-1],
+                                   importance = "none",
+                                   num.trees = ntrees,
+                                   mtry = mtry, min.node.size = node_size,
+                                   bootstrap.ts = "stationary" ,
+                                   block.size = block_size,
+                                   )
+      # compute forecast, aka fitted value for current i & save
+      # use the last "currently known" value in the window to get the fitted value / forecast
+      y_hat = predict(rand_forest, X_train[nrow(X_train), -1])
+      p = y_hat$predictions
+      result[i-Nin+1,col_counter] = p
+      
+      if (count_year == 4) {
+        para_count = para_count + 1
+        mtry = hyper_para_list[[para_count]]$mtry
+        samp_size = hyper_para_list[[para_count]]$samp_size
+        node_size = hyper_para_list[[para_count]]$node_size
+        # print(paste0("current hyperparameters: ", " mtry: ",mtry, 
+        #              " samp_size: ",samp_size, " node_size: ", node_size))
+        count_year = 0 # reset year counter when hyper parameter changend
+      }
+      count_year = count_year + 1
+      
+    }
+    col_counter = col_counter + 2
+    print(result)
+  }
+  colnames(result) =  c("gdp forecast h=0", "gdp",
+                        "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
+                        "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
+  
+  # insert true gdp values from 2000Q1 up to 2021Q4
+  result[,c(2,4,6,8,10)] = gdp[which(df$dates == 2000.00):length(gdp)]
+  
+  return(result)
+}
+

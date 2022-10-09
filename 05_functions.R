@@ -225,16 +225,8 @@ dm_tests = function(gdp, h_num, result_rf, result_arma){
   
   dm = list(rep(0,4)) # initialize
   
-  # #h = 0 nowcast not possible
-  # #print(paste0("current h = ", 0))
-  # e_arma = gdp[1:length(gdp)] - result_arma[1:(nrow(result_arma)-1),1] # starting with h = 1
-  # e_rf = gdp - result_rf[,1]
-  # dm[[1]] = forecast::dm.test(e1 = e_arma, e2 = e_rf, h = 0, varestimator = "bartlett",
-  #                        alternative = "greater") 
-  # #print(dm[[1]])
-  
   for (h in 1:(h_num-1)) {
-
+  
     e_arma = gdp[h:length(gdp)] - result_arma[1:(nrow(result_arma)-h),2+((2*h)-1)] # starting with h = 1
     e_rf = gdp - result_rf[,2+((2*h)-1)]
     #print(paste0("current h = ", h))
@@ -242,25 +234,9 @@ dm_tests = function(gdp, h_num, result_rf, result_arma){
     if (h > 1) {
       e_rf = e_rf[(h-1)] # delete first forecasts respectively to make them comparable (same length)
     }
-    dm[[h]] = forecast::dm.test(e1 = e_arma, e2 = e_rf, h = h, varestimator = "bartlett",
-                           alternative = "greater")
-    #print(dm[[h+1]])
+    dm[[h]] = forecast::dm.test(e1 = e_arma, e2 = e_rf, h = h, alternative = "greater")
+                                # varestimator = "bartlett",)
   }
-  #H1:greater
-  # for (h in 1:(h_num-1)) {
-  #   
-  #   e_arma = gdp[h:length(gdp)] - result_arma[1:(nrow(result_arma)-h),2+((2*h)-1)] # starting with h = 1
-  #   e_rf = gdp - result_rf[,2+((2*h)-1)]
-  #   #print(paste0("current h = ", h))
-  #   
-  #   if (h > 1) {
-  #     e_rf = e_rf[(h-1)] # delete first forecasts respectively to make them comparable (same length)  
-  #   }
-  #   dm[[h]] = forecast::dm.test(e1 = e_arma, e2 = e_rf, h = h, varestimator = "bartlett",
-  #                               alternative = "less") 
-  #   #print(dm[[h+1]])
-  # }
-  
   
   return(dm)
 }
