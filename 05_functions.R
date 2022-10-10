@@ -1,4 +1,4 @@
-# feed the true values into the results matrix (every 2nd column)
+# feed the true values into the results matrix (every 2nd column) for ar processes
 feed_in = function(result, gdp, h_max, forh){
   
   N = length(gdp) # length of time series
@@ -32,6 +32,7 @@ feed_in = function(result, gdp, h_max, forh){
   
   return(result)
 }
+
 ##############################################################################################
 # forecast evaluations
 ##############################################################################################
@@ -41,7 +42,7 @@ eval_forc = function(result, forh){
   
   num_hor = length(forh) # number of forecasts horizons (= 4, only considering h = 1,2,3,4 first)
   num_obs = dim(result_1)[1] # number of forecasts (88)
-  
+
   me = rep(NA, num_hor + 1) # initialize mean error
   mse = rep(NA,num_hor + 1) # initialize mse (mean squared error)
   mae = rep(NA,num_hor + 1) # initialize mae (mean absolute error)
@@ -82,6 +83,50 @@ eval_forc = function(result, forh){
               smins = list(min_me = min_me,
                           min_mse = min_mse, min_mae = min_mae, min_rmse = min_rmse)))
 }
+# random forest evaluation
+eval_forc_rf = function(result, forh){
+  # excluding nowcast h = 0
+  result_1 = result[,-c(1,2)]
+  
+  num_hor = length(forh) # number of forecasts horizons (= 4, only considering h = 1,2,3,4 first)
+  num_obs = dim(result_1)[1] # number of forecasts (88)
+  
+  me = rep(NA, num_hor + 1) # initialize mean error
+  mse = rep(NA,num_hor + 1) # initialize mse (mean squared error)
+  mae = rep(NA,num_hor + 1) # initialize mae (mean absolute error)
+  rmse = rep(NA,num_hor + 1) # initialize rmse (root mean squared error)
+  
+  j = 1
+  while (j <= num_hor) {
+    result_2 = result_1[,(2*j-1):(2*j)]
+    h = 1
+    
+    me[j + 1] = (sum(result_2[,1] - result_2[,2]))/ (num_obs - h + 1) # compute me
+    mse[j + 1] = (sum((result_2[,1] - result_2[,2])^2))/ (num_obs - h + 1) # compute mse
+    mae[j+ 1] = (sum(abs(result_2[,1] - result_2[,2])))/ (num_obs - h + 1) # compute mae
+    rmse[j+ 1] = sqrt( (sum((result_2[,1] - result_2[,2])^2))/ (num_obs - h + 1)) # compute rmse
+    
+    h = h + 1
+    j = j + 1; 
+  }
+  # compute statistics for h = 0 (first entry in vector)
+  me[1] = (sum(result[,1] - result[,2]))/ dim(result)[1]  # compute mean error 
+  mse[1] = (sum((result[,1] - result[,2])^2))/ dim(result)[1] # compute mse
+  mae[1] = (sum(abs(result[,1] - result[,2])))/ dim(result)[1] # compute mae
+  rmse[1] = sqrt( (sum((result[,1] - result[,2])^2))/  dim(result)[1]) # compute mae
+  
+  # get min values respectively
+  min_me = which.min(me) # h = 4 forecast has min me value ??
+  min_mse = which.min(mse) # h = 0 has min mse value
+  min_mae = which.min(mae) #  h = 0 has min mae value
+  min_rmse = which.min(rmse) #  h = 0 has min mae value
+  
+  
+  return(list(me = me, mse=mse, mae =mae, rmse = rmse,
+              smins = list(min_me = min_me,
+                           min_mse = min_mse, min_mae = min_mae, min_rmse = min_rmse)))
+}
+
 ##############################################################################################
 # converting gdp growth rate back to GDP levels
 ##############################################################################################
@@ -170,4 +215,36 @@ hp = function(gdp){
   return(list("hp"= hp, "residuals" = hp_res))
 }
 
+##############################################################################################
+# DM test and Theil's U 
+##############################################################################################
 
+dm_tests = function(gdp, h_num, result_rf, result_arma){
+  # h_num = 5: having five forecast horizons (h=0,...,4)
+  # for horizons h = 1,...,4: 
+  
+  dm = list(rep(0,4)) # initialize
+  
+  for (h in 1:(h_num-1)) {
+  
+    e_arma = gdp[h:length(gdp)] - result_arma[1:(nrow(result_arma)-h),2+((2*h)-1)] # starting with h = 1
+    e_rf = gdp - result_rf[,2+((2*h)-1)]
+    #print(paste0("current h = ", h))
+
+    if (h > 1) {
+      e_rf = e_rf[(h-1)] # delete first forecasts respectively to make them comparable (same length)
+    }
+    dm[[h]] = forecast::dm.test(e1 = e_arma, e2 = e_rf, h = h, alternative = "greater")
+                                # varestimator = "bartlett",)
+  }
+  
+  return(dm)
+}
+
+theils_U = function(eval_rf, eval_arma, h_num){
+  U = c() # initialize
+  for (i in 1:h_num) {
+    U[i] = eval_rf$rmse[i] / eval_arma$rmse[i] # divide the rmse's for each h
+  }
+  return(U)
+}

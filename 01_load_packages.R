@@ -12,12 +12,11 @@ install_and_load = function(a){
     install.packages("openxlsx")
     install.packages("tidyverse")
     install.packages("mFilter")
-    
-    # for using github:
-    #install.packages("usethis")
-    #install.packages("devtools")
-    #library(devtools) # devools needed to install directly from github
-    #install_github("cykbennie/fbi") # R Package to read QD and MD data -> install from github
+    # installing from github
+    install.packages("usethis")
+    install.packages("devtools")
+    library(devtools) # devools needed to install directly from github
+    devtools::install_github("hyanworkspace/rangerts", quiet = T) # boostrapping for ts
     
   } 
   # load packages
@@ -31,6 +30,7 @@ install_and_load = function(a){
   library(readxl)
   library(tidyverse)
   library(mFilter)
+  library(rangerts)
   
   #library(mFilter)
   # github
