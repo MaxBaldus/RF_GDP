@@ -136,7 +136,7 @@ imp_plot = function(varImpobject){
 # forecast plots
 final_forecast_plot = function(df, gdp, arma, rf_nonTunend, 
                                rf_Tunend, rf_lag, rf_ts, h, title,
-                               horizon, y_name_GDP){
+                               horizon, y_name_GDP, colors, colorname){
   slice_df = 1 + (2*h) # column index
   
   # create time series objects of all forecasts and gdp
@@ -157,12 +157,9 @@ final_forecast_plot = function(df, gdp, arma, rf_nonTunend,
   quarters_ts = time(gdp_slice)
   plot_data = as.data.frame(cbind(quarters_ts, gdp_slice, arma_slice, rf_nonTunend_slice,
                                   rf_Tunend_slice, rf_lag_slice, rf_ts_slice))
-  # legend
-  colors = c("GDP growth" = "black", "ARMA" = "blue", "RF-nonTuned" = "green",
-             "RF-Tuned" = "purple", "RF-Lags" = "pink", "RF-tsBootstrapping" = "orange")
   
   # ggplot
-  ggplot(data=plot_data, aes(x=quarters_ts, y=gdp_slice, color = "GDP growth")) +
+  ggplot(data=plot_data, aes(x=quarters_ts, y=gdp_slice, color = colorname)) +
     geom_line(linetype="solid") + 
     geom_line(aes(x=quarters_ts, y=arma_slice, color="ARMA"), linetype="solid") + 
     geom_line(aes(x=quarters_ts, y=rf_nonTunend_slice, color="RF-nonTuned"), linetype="solid") +  

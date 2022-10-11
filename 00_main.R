@@ -1177,6 +1177,9 @@ print(U_GDP_opt_ts)
 # GDP Growth
 source("04_plots.R")
 # Growth
+# legend
+colors_growth = c("GDP growth" = "black", "ARMA" = "blue", "RF-nonTuned" = "green",
+           "RF-Tuned" = "purple", "RF-Lags" = "pink", "RF-tsBootstrapping" = "orange")
 # h = 0
 final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
                     rf_nonTunend = rf_plain_rolling_fc, 
@@ -1186,7 +1189,9 @@ final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth,
                     h = 0,
                     title = "US GDP Growth Forecasts",
                     horizon = "Horizon h = 0",
-                    y_name_GDP = "Growth rate in %")
+                    y_name_GDP = "Growth rate in %",
+                    colors = colors_growth,
+                    colorname = "GDP growth")
 # h = 1
 final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
                     rf_nonTunend = rf_plain_rolling_fc, 
@@ -1196,7 +1201,9 @@ final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth,
                     h = 1,
                     title = "US GDP Growth Forecasts",
                     horizon = "Horizon h = 1",
-                    y_name_GDP = "Growth rate in %")
+                    y_name_GDP = "Growth rate in %",
+                    colors = colors_growth,
+                    colorname = "GDP growth")
 # h = 2
 final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
                     rf_nonTunend = rf_plain_rolling_fc, 
@@ -1206,7 +1213,9 @@ final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth,
                     h = 2,
                     title = "US GDP Growth Forecasts",
                     horizon = "Horizon h = 2",
-                    y_name_GDP = "Growth rate in %")
+                    y_name_GDP = "Growth rate in %",
+                    colors = colors_growth,
+                    colorname = "GDP growth")
 # h = 3
 final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
                     rf_nonTunend = rf_plain_rolling_fc, 
@@ -1216,7 +1225,9 @@ final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth,
                     h = 3,
                     title = "US GDP Growth Forecasts",
                     horizon = "Horizon h = 3",
-                    y_name_GDP = "Growth rate in %")
+                    y_name_GDP = "Growth rate in %",
+                    colors = colors_growth,
+                    colorname = "GDP growth")
 # h = 4
 final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
                     rf_nonTunend = rf_plain_rolling_fc, 
@@ -1226,9 +1237,13 @@ final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth,
                     h = 4,
                     title = "US GDP Growth Forecasts",
                     horizon = "Horizon h = 4",
-                    y_name_GDP = "Growth rate in %")
+                    y_name_GDP = "Growth rate in %",
+                    colors = colors_growth,
+                    colorname = "GDP growth")
 
 ### GDP
+colors_GDP = c("GDP" = "black", "ARMA" = "blue", "RF-nonTuned" = "green",
+                  "RF-Tuned" = "purple", "RF-Lags" = "pink", "RF-tsBootstrapping" = "orange")
 # h = 0
 final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
                     rf_nonTunend = rf_rolling_GDP_fc, 
@@ -1238,7 +1253,9 @@ final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar,
                     h = 0,
                     title = "US GDP Forecasts",
                     horizon = "Horizon h = 0",
-                    y_name_GDP = "US GDP (Billions of Dollars)")
+                    y_name_GDP = "US GDP (Billions of Dollars)",
+                    colors = colors_GDP,
+                    colorname = "GDP")
 # h = 1
 final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
                     rf_nonTunend = rf_rolling_GDP_fc, 
@@ -1248,7 +1265,9 @@ final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar,
                     h = 1,
                     title = "US GDP Forecasts",
                     horizon = "Horizon h = 1",
-                    y_name_GDP = "US GDP (Billions of Dollars)")
+                    y_name_GDP = "US GDP (Billions of Dollars)",
+                    colors = colors_GDP,
+                    colorname = "GDP")
 # h = 2
 final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
                     rf_nonTunend = rf_rolling_GDP_fc, 
@@ -1258,7 +1277,9 @@ final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar,
                     h = 2,
                     title = "US GDP Forecasts",
                     horizon = "Horizon h = 2",
-                    y_name_GDP = "US GDP (Billions of Dollars)")
+                    y_name_GDP = "US GDP (Billions of Dollars)",
+                    colors = colors_GDP,
+                    colorname = "GDP")
 # h = 3
 final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
                     rf_nonTunend = rf_rolling_GDP_fc, 
@@ -1268,7 +1289,9 @@ final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar,
                     h = 3,
                     title = "US GDP Forecasts",
                     horizon = "Horizon h = 3",
-                    y_name_GDP = "US GDP (Billions of Dollars)")
+                    y_name_GDP = "US GDP (Billions of Dollars)",
+                    colors = colors_GDP,
+                    colorname = "GDP")
 # h = 4
 final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
                     rf_nonTunend = rf_rolling_GDP_fc, 
@@ -1278,7 +1301,9 @@ final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar,
                     h = 4,
                     title = "US GDP Forecasts",
                     horizon = "Horizon h = 4",
-                    y_name_GDP = "US GDP (Billions of Dollars)")
+                    y_name_GDP = "US GDP (Billions of Dollars)",
+                    colors = colors_GDP,
+                    colorname = "GDP")
 # the larger the horizon, the less coming back from financial crises 
 
 
