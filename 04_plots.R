@@ -94,9 +94,85 @@ ggplot_errors = function(df, colors){
     scale_color_manual(values = colors) 
 }
 
+# variable importance plot 
+imp_plot = function(varImpobject){
+  
+  imp = as.data.frame(varImpobject)
+  imp$varnames = rownames(imp) # row names into column
+  rownames(imp) = NULL # delete rownames  
+  # create numbers for the each index of the variables
+  imp$var_categ = c(rep(1, 20), rep(2, 27), rep(3, 13), rep(4, 15),
+                    rep(5,29), rep(6,9), rep(7,20), rep(8,11), 9, 10)
+  # add up the percentage increase in MSE for each group
 
+  imp_groups = as.data.frame(matrix(NA, nrow = 10, ncol = 2))
+  counter = 1
+  slice_0 = 1
+  slice_1 = 20
+  for (i in c(27,13,15,29,9,20,11,1,1)) {
+    imp_groups[counter,1] = sum(imp$IncNodePurity[slice_0:slice_1])
+    counter = counter + 1
+    slice_0 = slice_1 + 1
+    slice_1 = slice_1 + i
+  }
+  imp_groups[10,1] = imp$IncNodePurity[length(imp$IncNodePurity)] # value of last group
+  
+  imp_groups[,1] * 100 # scaling for better readability
+  imp_groups[,2] = seq(1,10,1) # assign number of each group
+  imp_groups$varnames = c("REAL ACTIVITY", "EMPLOYMENT", "HOUSING", "INTEREST RATE",
+                          "INFLATION", "FINANCIAL MARKET", "MONEY", "CREDIT", "OILPRICE",
+                          "FFR") # goup names
+  colnames(imp_groups) = c("IncNodePurity", "var_categ", "varnames") # new column names
+  # ggplot
+  ggplot(imp_groups, aes(x=reorder(varnames, IncNodePurity), y=IncNodePurity, color=as.factor(var_categ))) + 
+    geom_point() +
+    geom_segment(aes(x=varnames,xend=varnames,y=0,yend=IncNodePurity)) +
+    scale_color_discrete(name="Variable Group") +
+    ylab("IncNodePurity") +
+    xlab("Series ID") +
+    coord_flip()
+}
 
+# forecast plots
+final_forecast_plot = function(df, gdp, arma, rf_nonTunend, 
+                               rf_Tunend, rf_lag, rf_ts, h, title,
+                               horizon, y_name_GDP){
+  slice_df = 1 + (2*h) # column index
+  
+  # create time series objects of all forecasts and gdp
+  gdp_slice =  ts(gdp[which(df$dates == 2000.00):(length(gdp))], start = c(2000,1),end = c(2021,4), frequency = 4)
+  arma_slice = ts(arma[1:(nrow(arma)-h),slice_df], start = c(2000,1),end = c(2021,4), frequency = 4)
+  rf_nonTunend_slice = ts(rf_nonTunend[,slice_df], start = c(2000,1),end = c(2021,4), frequency = 4)
+  rf_Tunend_slice = ts(rf_Tunend[,slice_df], start = c(2000,1),end = c(2021,4), frequency = 4)
+  rf_lag_slice = ts(rf_lag[,slice_df], start = c(2000,1),end = c(2021,4), frequency = 4)
+  rf_ts_slice = ts(rf_ts[,slice_df], start = c(2000,1),end = c(2021,4), frequency = 4)
+  # non-ts
+  # gdp_slice = gdp[which(df$dates == 2000.00):(length(gdp))]
+  # arma_slice = arma[1:(nrow(arma)-h),slice_df]
+  # rf_nonTunend_slice = rf_nonTunend[,slice_df]
+  # rf_Tunend_slice = rf_Tunend[,slice_df]
+  # rf_lag_slice = rf_lag[,slice_df]
+  # rf_ts_slice = rf_ts[,slice_df]
+  # get the dates
+  quarters_ts = time(gdp_slice)
+  plot_data = as.data.frame(cbind(quarters_ts, gdp_slice, arma_slice, rf_nonTunend_slice,
+                                  rf_Tunend_slice, rf_lag_slice, rf_ts_slice))
+  # legend
+  colors = c("GDP growth" = "black", "ARMA" = "blue", "RF-nonTuned" = "green",
+             "RF-Tuned" = "purple", "RF-Lags" = "pink", "RF-tsBootstrapping" = "orange")
+  
+  # ggplot
+  ggplot(data=plot_data, aes(x=quarters_ts, y=gdp_slice, color = "GDP growth")) +
+    geom_line(linetype="solid") + 
+    geom_line(aes(x=quarters_ts, y=arma_slice, color="ARMA"), linetype="solid") + 
+    geom_line(aes(x=quarters_ts, y=rf_nonTunend_slice, color="RF-nonTuned"), linetype="solid") +  
+    geom_line(aes(x=quarters_ts, y=rf_Tunend_slice, color="RF-Tuned"), linetype="solid") + 
+    geom_line(aes(x=quarters_ts, y=rf_lag_slice, color="RF-Lags"), linetype="solid") + 
+    geom_line(aes(x=quarters_ts, y=rf_ts_slice, color="RF-tsBootstrapping"), linetype="solid") + 
+    labs(x = "Time", y = y_name_GDP, color = horizon) +
+    # xlab("Time") + ylab(y_name_GDP) + labs(color = horizon) +
+    # theme(axis.title = element_blank()) +
+    ggtitle(title) +
+    scale_color_manual(values = colors) 
 
-
-
-# define ggplot environment => do plots again .. nice for paper .. 
+  }

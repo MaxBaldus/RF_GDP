@@ -12,6 +12,7 @@ install_and_load = function(a){
     install.packages("openxlsx")
     install.packages("tidyverse")
     install.packages("mFilter")
+    install.packages("dplyr")
     # installing from github
     install.packages("usethis")
     install.packages("devtools")
@@ -20,7 +21,6 @@ install_and_load = function(a){
     
   } 
   # load packages
-  
   library(randomForest)
   library(tsapp)
   library(tseries)
@@ -31,11 +31,8 @@ install_and_load = function(a){
   library(tidyverse)
   library(mFilter)
   library(rangerts)
+  library(dplyr)
   
-  #library(mFilter)
-  # github
-  #library(devtools)
-  #library(fbi)
   return("Packages loaded")
 }
 

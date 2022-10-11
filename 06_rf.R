@@ -732,14 +732,7 @@ rf_plain_rolling_hyperopt_lag = function(df, gdp, ntrees, forh,
 
 ### GDP
 rf_GDP_rolling_hyperopt_lag = function(df, gdp, ntrees, forh,
-                                         hyper_para_list) {
-  
-  # create 4 new ts with lagged gdp values from t-1 up to t-4
-  y_lag = embed(gdp, dimension = 5)  
-  y_lag = y_lag[,-1] # exclude gdp column
-  colnames(y_lag) = c("t-1", "t-2", "t-3", "t-4")
-  # create new dataframe now with lagged gdp values, loosing first 4 observations
-  df = cbind(df[5:nrow(df),1:3],y_lag,df[5:nrow(df),-(1:3)]) 
+                                         hyper_para_list, xi) {
   
   # first differencing
   gdp_d = diff(df$GDPC1) # 1st differencing ts
@@ -747,6 +740,13 @@ rf_GDP_rolling_hyperopt_lag = function(df, gdp, ntrees, forh,
   # loosing one observation: hence also need to delete first observation in regressor data
   df = df[-1,]
   df$GDPC1 = gdp_ct # use differencend ts for training
+  
+  # create 4 new ts with lagged gdp values from t-1 up to t-4
+  y_lag = embed(df$GDPC1, dimension = 5)  
+  y_lag = y_lag[,-1] # exclude gdp column
+  colnames(y_lag) = c("t-1", "t-2", "t-3", "t-4")
+  # create new dataframe now with lagged gdp values, loosing first 4 observations
+  df = cbind(df[5:nrow(df),1:3],y_lag,df[5:nrow(df),-(1:3)]) 
   
   N = length(df[,2]) # length of time series
   Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
@@ -813,14 +813,14 @@ rf_GDP_rolling_hyperopt_lag = function(df, gdp, ntrees, forh,
   colnames(result) =  c("gdp forecast h=0", "gdp",
                         "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
                         "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
-  
+
   # insert true gdp values from 2000Q1 up to 2021Q4
-  result[,c(2,4,6,8,10)] = df$GDPC1[which(df$dates == 2000.00):length(df$GDP_GR)]
+  result[,c(2,4,6,8,10)] = gdp[which(df$dates == 2001.25):length(gdp)]
   
   return(result)
 }
 #########################################################################
-# hyper parameter tunung now for block size instead samp size
+# hyper parameter tuning now for block size instead samp size
 #########################################################################
 
 ### 1a) oob for GDP GROWTH
@@ -927,13 +927,11 @@ rf_ranger_oob_level_ts = function(df, mtry_grid, block_size_grid, node_size_grid
   return(hyper_para_list)
 }
 
-
-
-
 #########################################################################
 # using rangerts package to perform ordered bootstrapping
-# using optimal block size
+# using the TUNED optimal block size
 #########################################################################
+### GDP growth
 rf_plain_rolling_hyperopt_ts = function(df, gdp, ntrees, forh,
                                      hyper_para_list) {
   N = length(df[,2]) # length of time series
@@ -951,7 +949,7 @@ rf_plain_rolling_hyperopt_ts = function(df, gdp, ntrees, forh,
   for (h in c(0, forh)) {
     print(paste0("h=", h))
     X = df[1:(nrow(df)-h),-2]  # y_t+h = f(y_t,X_t), excluding GDPCR
-    y = df[(1+h):nrow(df),c(1,3)] # GDP target 
+    y = df[(1+h):nrow(df),c(1,3)] # GDP growth target 
     
     # initial hyper parameters for each horizon
     count_year = 1
@@ -983,7 +981,7 @@ rf_plain_rolling_hyperopt_ts = function(df, gdp, ntrees, forh,
       if (count_year == 4) {
         para_count = para_count + 1
         mtry = hyper_para_list[[para_count]]$mtry
-        samp_size = hyper_para_list[[para_count]]$samp_size
+        block_size = hyper_para_list[[para_count]]$block_size
         node_size = hyper_para_list[[para_count]]$node_size
         # print(paste0("current hyperparameters: ", " mtry: ",mtry, 
         #              " samp_size: ",samp_size, " node_size: ", node_size))
@@ -1005,3 +1003,88 @@ rf_plain_rolling_hyperopt_ts = function(df, gdp, ntrees, forh,
   return(result)
 }
 
+### GDP
+rf_GDP_rolling_hyperopt_ts = function(df, gdp, ntrees, forh,
+                                        hyper_para_list, xi) {
+  
+  # first differencing
+  gdp_d = diff(gdp) # 1st differencing ts
+  gdp_ct = gdp_d - mean(gdp_d) # centering ts
+  # loosing one observation: hence also need to delete first observation in regressor data
+  df = df[-1,]
+  df$GDPC1 = gdp_ct # use differencend ts for training
+  
+  N = length(df[,2]) # length of time series
+  Nin = N - (N - which(df[,1] == 2000.00)) # length of in sample observations 
+  print(paste0("N=", N))
+  print(paste0("Nin=", Nin))
+  
+  # initializing
+  result = matrix(0, nrow = N-Nin + 1, ncol = 2*length(forh)+2)
+  
+  # loop over each quarter from 2000 up to 2022,
+  # doing a direct oos forecast for each horizon h
+  col_counter = 1
+  
+  for (h in c(0, forh)) {
+    print(paste0("h=", h))
+    X = df[1:(nrow(df)-h),-3]  # y_t+h = f(y_t,X_t), excluding growth rate
+    y = df[(1+h):nrow(df),c(1,2)] # GDP target 
+    
+    # initial hyper parameters for each horizon
+    count_year = 1
+    para_count = 1
+    mtry = hyper_para_list[[para_count]]$mtry
+    block_size = hyper_para_list[[para_count]]$block_size
+    node_size = hyper_para_list[[para_count]]$node_size
+    
+    for (i in Nin:(N)) {
+      # estimate rf again each quarter using new model (but same hyper parameters)
+      # for each iteration: have a new dataframe
+      X_train = X[1:(i-h),]
+      y_train = y[1:(i-h),]
+      # train rf using values up to current window 
+      rand_forest = rangerts(x = X_train[-nrow(X_train),-1], # excluding last training row
+                             y = y_train[-nrow(y_train),-1],
+                             importance = "none",
+                             num.trees = ntrees,
+                             mtry = mtry, min.node.size = node_size,
+                             bootstrap.ts = "stationary" ,
+                             block.size = block_size,
+      )
+      # compute forecast, aka fitted value for current i & save
+      # use the last "currently known" value in the window to get the fitted value / forecast
+      y_hat = predict(rand_forest, X_train[nrow(X_train), -1])
+      p = y_hat$predictions
+      result[i-Nin+1,col_counter] = p
+      
+      if (count_year == 4) {
+        para_count = para_count + 1
+        mtry = hyper_para_list[[para_count]]$mtry
+        block_size = hyper_para_list[[para_count]]$block_size
+        node_size = hyper_para_list[[para_count]]$node_size
+        # print(paste0("current hyperparameters: ", " mtry: ",mtry, 
+        #              " samp_size: ",samp_size, " node_size: ", node_size))
+        count_year = 0 # reset year counter when hyper parameter changend
+      }
+      count_year = count_year + 1
+      
+    }
+    col_counter = col_counter + 2
+    print(result)
+  }
+  # compute gdp values back (not differenced ts)
+  for (i in (seq(1, ncol(result), 2))) { # for each 2nd column: compute inverse of diff. operation
+    result[,i] =  diffinv(result[,i] + mean(gdp_d), xi = xi)[-1]
+    # xi is the starting value of the differenced series (gdp) + adding mean again (non_centered)
+  }
+  
+  colnames(result) =  c("gdp forecast h=0", "gdp",
+                        "gdp forecast h=1", "gdp", "gdp forecast h=2", "gdp",
+                        "gdp forecast h=3", "gdp", "gdp forecast h=4", "gdp")
+  
+  # insert true gdp values from 2000Q1 up to 2021Q4
+  result[,c(2,4,6,8,10)] = gdp[(which(df$dates == 2000.00)+1):(length(gdp))] 
+  
+  return(result)
+}

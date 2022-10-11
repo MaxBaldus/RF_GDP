@@ -3,11 +3,11 @@
 rm(list=ls()) # clear out all variables in current session 
 
 # Set working directory
-# wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
+wd = "~/Dokumente/CAU/WS_22_23/Seminar/Code/RF_GDP"
 # office:
 # wd = "C:/Users/admin/Desktop/Max/RF_GDP/RF_GDP"
 # wd = "C:/Users/u32/Desktop/Max/RF_GDP"
-wd = "C:/Users/Guest/Desktop/Max/RF_GDP"
+# wd = "C:/Users/Guest/Desktop/Max/RF_GDP"
 
 setwd(wd)
 
@@ -54,8 +54,6 @@ data_in = in_out_sample(data, h_max)
 # plotting in sample data
 gdp_plot(data_in$GDPC1,  title = "GDP in-sample", ylab = "GDP") 
 gdp_plot(data_in$GDP_GR, title = "GDP growth in-sample", ylab = "gdp growth")
-
-# using ggplot
 
 ##############################################################################################
 # estimating benchmark models and doing a simple recursive forecast (h = 1, ..., 88) 
@@ -154,7 +152,7 @@ gdp_growth_forecast_plot(data$GDP_GR, gdp_forecast = ar_33_growth$predicitons$pr
 gdp_forecast_plot(data$GDPC1, ar_11$predicitons_inverted, title = "oos_forecasts_ar11", ylab = "gdp", 
                   col = "blue", CI = TRUE,
                   se = ar_11$predicitons$se) 
-
+par(mfrow = c(1,1)) # reset window
 ##############################################################################################
 # estimating benchmark models recursively: using ar_33 for growth based on results above
 # standard errors and forecasts are pretty similar
@@ -220,7 +218,7 @@ print(eval_for_ar)
 # [1] 270.3803 567.5000 401.1395 484.7816 509.3702
 
 ##############################################################################################
-# plotting the different forecasts
+# plotting the different ARMA forecasts
 ##############################################################################################
 # plotting growth forecasts
 source("04_plots.R")
@@ -246,7 +244,7 @@ for (j in 1:5) {
 }
 
 ##############################################################################################
-# estimate plain rf and forecast growth rate values from 2000 up to 2022
+# estimate plain rf and forecast growth rate values from 2000 up to 2022 once
 ##############################################################################################
 # create train (in_sample) and test (out_of_sample) dataframe for GDP growth
 X_in = data_in[,-(2:3)] # regressors
@@ -286,10 +284,11 @@ gdp_forecast_plot(data$GDPC1, gdp_forecast = gdp_inverted,
 # error accumulates => the larger the horizon, the more and more GDP is overestimated 
 par(mfrow = c(1,1)) # reset window
 ##############################################################################################
+# fit plain rf using OOB (out-of-bag error) as test-error estimate for entire data set
+# Importance plot 
 # oob error 
 ##############################################################################################
 source("06_rf.R")
-# fit plain rf using OOB (out-of-bag error) as test-error estimate for entire dataset
 set.seed(501) 
 rf_plain_growth = rf_plain(X = data[,-c(1,2,3)], 
                            gdp = data$GDP_GR,
@@ -301,10 +300,21 @@ rf_plain_growth = rf_plain(X = data[,-c(1,2,3)],
                            xi = data$df_trans$GDPC1[data$df_trans$sasdate == "2000-03-01"])
 plot(rf_plain_growth$forest$mse) # OOB sample error 
 which.min(rf_plain_growth$forest$mse) # number of tree that minimize OOB sample error: 479
+
 # importance plot
-randomForest::varImpPlot(rf_plain_growth$forest)
+imp = randomForest::varImpPlot(rf_plain_growth$forest)
 # %increase in MSE and increase in node purity 
 
+# variable importance plot using ggplot
+source("04_plots.R")
+imp_plot(imp) # importance plot of the aggreagted node-purity per category
+# jpeg(file="output/Importance.jpeg")
+# imp_plot(imp)
+# dev.off()
+# #save as pdf
+# pdf(file = "output/Importance")
+# imp_plot(imp)
+# dev.off()
 ##############################################################################################
 # now trying out validation-set approach / LAST BLOCK EVALUATION
 # fit model in first part of the series => then evaluate on later part,
@@ -360,6 +370,11 @@ plot.data = data.frame(ntrees = 1:ntree, oob = rf_plain_growth$forest$mse,
                        test_error = rf_plain_vs$test$mse, cv_error = cv_ntree_plain) 
 colors = c("OOB" = "black", "Test Error" = "blue", "CV Error" = "red")
 ggplot_errors(df = plot.data, colors = colors)
+
+# # save as vector-image (only once)
+# pdf(file = "output/Errors")
+# ggplot_errors(df = plot.data, colors = colors)
+# dev.off()
 
 # number of trees that yields lowest Error respectively:
 which.min(rf_plain_growth$forest$mse) # number of trees that minimize OOB sample error: 395
@@ -440,7 +455,7 @@ gdp_growth_forecast_plot(data$GDPC1, gdp_forecast = rf_plain_growth$plain_forest
                          CI = FALSE)
 # not really a difference from eye-balling
 ##############################################################################################
-# estimate rf for GDP GROWTH with rolling window approach: 
+# estimate rf directly for GDP GROWTH with rolling window approach: 
 # using a-priori hyper parameter model specification
 # and training new forest each iteration
 ##############################################################################################
@@ -495,7 +510,7 @@ print(eval_for_rf)
 # [1] 1
 
 # compare to ar11
-print(eval_for_ar_growth)
+# print(eval_for_ar_growth)
 
 # Theil's U and DM TEST 
 source("05_functions.R")
@@ -606,7 +621,7 @@ print(eval_for_rf_GDPC1)
 # [1] 1
 
 # compare to ar11
-print(eval_for_ar)
+# print(eval_for_ar)
 # rmse: rf for h = 1 and h = 4 better
 # Theil's U and DM TEST 
 source("05_functions.R")
@@ -628,15 +643,15 @@ print(U_gdp)
 ###############################################################################################
 # Rolling window for GDP using first Hodrick Prescott Filter
 ##############################################################################################
-source("05_functions.R")
-test = hp(data$GDPC1)
-source("06_rf.R")
-set.seed(501)
-rf_rolling_GDP_hp = rf_rolling_hp(df = data, # exclude data column and GDPC1
-                                gdp = test$residuals,
-                                mtry = (ncol(data) - 3)/3, # predictors used is square root of predictors
-                                ntrees = 500, forh,
-                                hp = test$hp)
+# source("05_functions.R")
+# test = hp(data$GDPC1)
+# source("06_rf.R")
+# set.seed(501)
+# rf_rolling_GDP_hp = rf_rolling_hp(df = data, # exclude data column and GDPC1
+#                                 gdp = test$residuals,
+#                                 mtry = (ncol(data) - 3)/3, # predictors used is square root of predictors
+#                                 ntrees = 500, forh,
+#                                 hp = test$hp)
 # forecasted values is e.g. 1.849404e-13, meaning when adding trend and cycle back, yielding
 # same values as gdp, because filter too strong ("filters everything out") 
 
@@ -743,9 +758,8 @@ hyper_test_final_level = readRDS("output/hyper_test_final_level.rda")
 # 1) start: train on 1:1987Q4, test on 1988 => train on 1:1988Q4, test on 1989 ... up to 1998 being test-set
 # this yields first hyper para combination for predicting 2000Q1 (even for h = 4 using 1999Q1)
 # 2) start: train on 1: 1988Q4, test on 1989 => up to test set: 1999 => yields hyper para for 2001Q1 with 2000Q1
-# really needed? I.E. NEEDED TO  ESTIMATE TEST ERROR BETTER? OR IS LAST BLOCK EVALUATION ENOUGH?
-# for each combination: average error (as in YOON -> k = 10 (CITED IN YOON))
-# but: not needed for rf -> just use oob error 
+# for each combination: average error (as in YOON -> k = 10)
+# but: not needed for rf, can use ´oob error 
 
 ##############################################################################################
 # again using rolling window and training new forest for each new window, but this time
@@ -780,19 +794,17 @@ for (j in 1:5) {
 source("05_functions.R")
 eval_for_rf_hyperopt = eval_forc_rf(rf_rolling_growth_hyperopt, forh)
 print(eval_for_rf_hyperopt)
-# eval_for_rf_hyperopt = eval_forc(result_rf_hyperopt[1:(dim(result_rf_hyperopt)[1]-1),], forh) 
-
 # $me
-# [1] 0.0006128271 0.0009768571 0.0019614065 0.0014173337 0.0014897087
+# [1] 0.0007618491 0.0008347875 0.0016160759 0.0013445981 0.0013970164
 # 
 # $mse
-# [1] 0.0001041700 0.0002754375 0.0002841820 0.0002454053 0.0002318177
+# [1] 0.0001044614 0.0002875815 0.0003004401 0.0002476021 0.0002368996
 # 
 # $mae
-# [1] 0.002472820 0.006514005 0.006633912 0.006812798 0.006871087
+# [1] 0.002833917 0.006583654 0.006699152 0.006844096 0.006818618
 # 
 # $rmse
-# [1] 0.01020637 0.01659631 0.01685770 0.01566542 0.01522556
+# [1] 0.01022063 0.01695823 0.01733321 0.01573538 0.01539154
 # 
 print(eval_for_rf) 
 # Theil's U and DM TEST 
@@ -809,7 +821,7 @@ print(dm_growth_opt)
 source("05_functions.R")
 U_growth_opt = theils_U(eval_rf = eval_for_rf_hyperopt, eval_arma = eval_for_ar_growth, 5)
 print(U_growth_opt)
-# 0.7766184 0.9328254 1.0587643 0.9861111 0.9583168
+# 0.7767907 0.9327313 1.0592471 0.9856922 0.9584857
 # h = 0,1,3 and 4: rf is slightly better (< 1) 
 # Theil's U about the same
 
@@ -818,6 +830,7 @@ U_oob = theils_U(eval_rf = eval_for_rf_hyperopt, eval_arma = eval_for_rf, 5)
 print(U_oob)
 # 0.9986043 0.9786582 0.9725666 0.9955538 0.9892160
 # rf with optimal hyper params slightly better!
+
 
 ### 1b) GDP
 source("06_rf.R")
@@ -855,7 +868,7 @@ print(eval_for_rf_hyperopt_GDP)
 # $rmse
 # [1] 274.9435 318.3242 614.8092 519.9144 533.2710
 #
-print(eval_for_rf_GDPC1) 
+# print(eval_for_rf_GDPC1) 
 
 # Theil's U and DM TEST 
 source("05_functions.R")
@@ -888,6 +901,7 @@ print(U_GDP_oob)
 ##############################################################################################
 # using lagged gdp values as regressors: 4 lags
 ##############################################################################################
+### 1) GDP growth
 source("06_rf.R")
 set.seed(501)
 rf_rolling_growth_hyperopt_lag = rf_plain_rolling_hyperopt_lag(df = data, # exclude data column and GDPC1
@@ -944,10 +958,10 @@ print(U_oob_lag)
 # 1.001384 1.015734 1.000383 1.004677 1.003271
 # no improvement
 
-### GDP
+### 2) GDP
 source("06_rf.R")
 set.seed(501)
-rf_rolling_hyperopt_level_lag = rf_GDP_rolling_hyperopt(df = data, gdp = data$GDPC1, ntrees = 500, forh,
+rf_rolling_hyperopt_level_lag = rf_GDP_rolling_hyperopt_lag(df = data, gdp = data$GDPC1, ntrees = 500, forh,
                                                     hyper_para_list = hyper_oob_final_level, 
                                                     xi = data$GDPC1[data$dates == 2000.00])
 #result_rf_hyperopt_level = feed_in(result = rf_rolling_hyperopt_level, gdp = data$GDPC1, h_max, forh)
@@ -969,17 +983,16 @@ source("05_functions.R")
 eval_for_rf_hyperopt_GDP_lag = eval_forc_rf(rf_rolling_hyperopt_level_lag, forh)
 print(eval_for_rf_hyperopt_GDP_lag)
 # $me
-# [1]  71.94328 108.55501 511.75831 403.70682 422.44429
+# [1]  71.31652 138.44853 493.99935 415.64034 429.92680
 # 
 # $mse
-# [1]  75593.92 101330.27 377990.37 270310.97 284377.95
+# [1]  75941.8 119837.5 357556.8 283785.0 295636.5
 # 
 # $mae
-# [1] 180.6950 217.6207 512.2799 412.0462 425.4367
+# [1] 182.8559 245.5787 494.6524 424.0400 433.3401
 # 
 # $rmse
-# [1] 274.9435 318.3242 614.8092 519.9144 533.2710
-# print(eval_for_rf_GDPC1) 
+# [1] 275.5754 346.1755 597.9605 532.7147 543.7247
 
 source("05_functions.R")
 ### DM test GDP GROWTH forecasts, for each h 
@@ -994,13 +1007,13 @@ print(dm_GDP_oob_lag)
 source("05_functions.R")
 U_GDP_opt_lag = theils_U(eval_rf = eval_for_rf_hyperopt_GDP_lag, eval_arma = eval_for_ar, 5)
 print(U_GDP_opt_lag)
-# 1.0168767 0.5609236 1.5326569 1.0724713 1.0469221
+# 1.0192139 0.6100008 1.4906548 1.0988756 1.0674449
 # only for h = 1 rf better, otherwise worse
 
 # U against rf_without hyper parameter:
 U_GDP_oob_lag = theils_U(eval_rf = eval_for_rf_hyperopt_GDP_lag, eval_arma = eval_for_rf_hyperopt_GDP, 5)
-print(U_GDP_oob)
-# 0.9329759 0.9937761 1.1470751 1.0098483 1.1728768
+print(U_GDP_oob_lag)
+# 1.0022984 1.0874936 0.9725953 1.0246201 1.0196029
 # for h = 1,2 slightly better, for other forecasts worse 
 
 ##############################################################################################
@@ -1008,7 +1021,7 @@ print(U_GDP_oob)
 # using optimal oob hyper parameters from before for each year 
 # instead of samp_size, block size is now used
 # block_size determines the number of observations per block , default value is 10
-# again hyper parameter training to get optimal block size (instead samp.size now )
+# again HYPER PARAMETER TRAINING to get optimal block size (instead samp.size now )
 ##############################################################################################
 mtry_grid = seq(5, ncol(data[,-c(1,2,3)]), 2) # start with 5 split variables, than increase up to p (bagging) by 2
 block_size_grid = seq(4,80,4) # from 1 year (4 quarters) to 20 years (80 quarters) per block
@@ -1044,7 +1057,7 @@ end_time = Sys.time()
 print(paste("estimation time: ", end_time-start_time))
 
 ##############################################################################################
-# using optimal hyperparameter now
+# using optimal hyper parameters now
 ##############################################################################################
 # read opt. hyperparams
 hyper_oob_final_growth_ts = readRDS("output/hyperparams_oob_growth_ts.rda") # oob growth
@@ -1055,8 +1068,7 @@ source("06_rf.R")
 set.seed(501)
 rf_rolling_growth_hyperopt_ts = rf_plain_rolling_hyperopt_ts(df = data, # exclude data column and GDPC1
                                                        gdp = data$GDP_GR, ntrees = 500, forh,
-                                                       hyper_para_list = hyper_oob_final_growth_ts,
-                                                       block_size = 10)
+                                                       hyper_para_list = hyper_oob_final_growth_ts)
 head(rf_rolling_growth_hyperopt_ts)
 # plotting the different forecasts
 source("04_plots.R")
@@ -1074,9 +1086,19 @@ for (j in 1:5) {
 source("05_functions.R")
 eval_for_rf_hyperopt_ts = eval_forc_rf(rf_rolling_growth_hyperopt_ts, forh)
 print(eval_for_rf_hyperopt_ts)
+# $me
+# [1] 0.0004869886 0.0010508694 0.0017684765 0.0012594442 0.0011234613
+# 
+# $mse
+# [1] 0.0001023278 0.0002909402 0.0003048436 0.0002595310 0.0002477697
+# 
+# $mae
+# [1] 0.002733769 0.006495636 0.006563469 0.007026814 0.007160545
+# 
+# $rmse
+# [1] 0.01011572 0.01705697 0.01745977 0.01610996 0.01574070
 
-
-print(eval_for_rf_hyperopt) 
+# print(eval_for_rf_hyperopt) 
 
 # Theil's U and DM TEST 
 source("05_functions.R")
@@ -1087,25 +1109,181 @@ dm_growth_ts = dm_tests(gdp = data$GDP_GR[which(data$dates == 2000.00):length(da
 print(dm_growth_ts)
 
 
+
 ### Theil's U
 source("05_functions.R")
-U_growth_opt = theils_U(eval_rf = eval_for_rf_hyperopt_ts, eval_arma = eval_for_ar_growth, 5)
-print(U_growth_opt)
+U_growth_opt_ts = theils_U(eval_rf = eval_for_rf_hyperopt_ts, eval_arma = eval_for_ar_growth, 5)
+print(U_growth_opt_ts)
+# 0.7698917 0.9586209 1.0970780 1.0136638 0.9909150
 
-# U against rf_without blocked boostrapping:
-U_oob = theils_U(eval_rf = eval_for_rf_hyperopt_ts, eval_arma = eval_for_rf_hyperopt, 5)
-print(U_oob)
 
 ### 1b) GDP 
+source("06_rf.R")
+set.seed(501)
+rf_rolling_GDP_hyperopt_ts = rf_GDP_rolling_hyperopt_ts(df = data, # exclude data column and GDPC1
+                                                        gdp = data$GDPC1, ntrees = 500, forh,
+                                                        hyper_para_list = hyper_oob_final_growth_ts,
+                                                        xi = data$GDPC1[data$dates == 2000.00])
+head(rf_rolling_GDP_hyperopt_ts)
+# plotting the different forecasts
+source("04_plots.R")
+par(mfrow = c(1, 1))
+for (j in 1:5) {
+  gdp_growth_forecast_plot(data$GDP_GR, gdp_forecast = rf_rolling_GDP_hyperopt_ts[,(2*j-1)], 
+                           se = sd(rf_rolling_GDP_hyperopt_ts[,(2*j-1)]), 
+                           title = paste0("oos_growth_forecasts_rf_plain, h=",j-1), 
+                           ylab = "gdp growth", col = "green", 
+                           CI = FALSE)
+  print(head(rf_rolling_GDP_hyperopt_ts[,(2*j-1)])) # printing first forecast
+  print(sd(rf_rolling_GDP_hyperopt_ts[,(2*j-1)])) # printing standard error 
+}
+# evaluate forecasts
+source("05_functions.R")
+eval_GDP_rf_hyperopt_ts = eval_forc_rf(rf_rolling_GDP_hyperopt_ts, forh)
+print(eval_GDP_rf_hyperopt_ts)
+# $me
+# [1] -41.20441  91.09950 341.45399 459.37751 386.44674
+# 
+# $mse
+# [1]  58349.91  89784.95 227007.47 334007.03 272165.80
+# 
+# $mae
+# [1] 144.6251 195.0433 380.3036 465.3443 412.3371
+# 
+# $rmse
+# [1] 241.5573 299.6414 476.4530 577.9334 521.6951
+
+# Theil's U and DM TEST 
+source("05_functions.R")
+### DM test GDP GROWTH forecasts, for each h 
+dm_GDP_ts = dm_tests(gdp = data$GDP_GR[which(data$dates == 2000.00):length(data$dates)], 
+                        h_num = 5,
+                        result_rf = rf_rolling_GDP_hyperopt_ts, result_arma = result_ar)
+print(dm_GDP_ts)
+
+
+### Theil's U
+source("05_functions.R")
+U_GDP_opt_ts = theils_U(eval_rf = eval_GDP_rf_hyperopt_ts, eval_arma = eval_for_ar, 5)
+print(U_GDP_opt_ts)
+# 0.8933980 0.5280024 1.1877490 1.1921521 1.0241963
 
 
 ##############################################################################################
-# plot forecasts of all models for each horizon 
+# plot forecasts of all models for each horizon using ggplot
+# for each horizon: all models and gdp 
+# once for growth, once for GDP
+##############################################################################################
+# GDP Growth
+source("04_plots.R")
+# Growth
+# h = 0
+final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
+                    rf_nonTunend = rf_plain_rolling_fc, 
+                    rf_Tunend = rf_rolling_growth_hyperopt, 
+                    rf_lag = rf_rolling_growth_hyperopt_lag, 
+                    rf_ts = rf_rolling_growth_hyperopt_ts,
+                    h = 0,
+                    title = "US GDP Growth Forecasts",
+                    horizon = "Horizon h = 0",
+                    y_name_GDP = "Growth rate in %")
+# h = 1
+final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
+                    rf_nonTunend = rf_plain_rolling_fc, 
+                    rf_Tunend = rf_rolling_growth_hyperopt, 
+                    rf_lag = rf_rolling_growth_hyperopt_lag, 
+                    rf_ts = rf_rolling_growth_hyperopt_ts,
+                    h = 1,
+                    title = "US GDP Growth Forecasts",
+                    horizon = "Horizon h = 1",
+                    y_name_GDP = "Growth rate in %")
+# h = 2
+final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
+                    rf_nonTunend = rf_plain_rolling_fc, 
+                    rf_Tunend = rf_rolling_growth_hyperopt, 
+                    rf_lag = rf_rolling_growth_hyperopt_lag, 
+                    rf_ts = rf_rolling_growth_hyperopt_ts,
+                    h = 2,
+                    title = "US GDP Growth Forecasts",
+                    horizon = "Horizon h = 2",
+                    y_name_GDP = "Growth rate in %")
+# h = 3
+final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
+                    rf_nonTunend = rf_plain_rolling_fc, 
+                    rf_Tunend = rf_rolling_growth_hyperopt, 
+                    rf_lag = rf_rolling_growth_hyperopt_lag, 
+                    rf_ts = rf_rolling_growth_hyperopt_ts,
+                    h = 3,
+                    title = "US GDP Growth Forecasts",
+                    horizon = "Horizon h = 3",
+                    y_name_GDP = "Growth rate in %")
+# h = 4
+final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
+                    rf_nonTunend = rf_plain_rolling_fc, 
+                    rf_Tunend = rf_rolling_growth_hyperopt, 
+                    rf_lag = rf_rolling_growth_hyperopt_lag, 
+                    rf_ts = rf_rolling_growth_hyperopt_ts,
+                    h = 4,
+                    title = "US GDP Growth Forecasts",
+                    horizon = "Horizon h = 4",
+                    y_name_GDP = "Growth rate in %")
+
+### GDP
+# h = 0
+final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
+                    rf_nonTunend = rf_rolling_GDP_fc, 
+                    rf_Tunend = rf_rolling_hyperopt_level, 
+                    rf_lag = rf_rolling_hyperopt_level_lag, 
+                    rf_ts = rf_rolling_GDP_hyperopt_ts,
+                    h = 0,
+                    title = "US GDP Forecasts",
+                    horizon = "Horizon h = 0",
+                    y_name_GDP = "US GDP (Billions of Dollars)")
+# h = 1
+final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
+                    rf_nonTunend = rf_rolling_GDP_fc, 
+                    rf_Tunend = rf_rolling_hyperopt_level, 
+                    rf_lag = rf_rolling_hyperopt_level_lag, 
+                    rf_ts = rf_rolling_GDP_hyperopt_ts,
+                    h = 1,
+                    title = "US GDP Forecasts",
+                    horizon = "Horizon h = 1",
+                    y_name_GDP = "US GDP (Billions of Dollars)")
+# h = 2
+final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
+                    rf_nonTunend = rf_rolling_GDP_fc, 
+                    rf_Tunend = rf_rolling_hyperopt_level, 
+                    rf_lag = rf_rolling_hyperopt_level_lag, 
+                    rf_ts = rf_rolling_GDP_hyperopt_ts,
+                    h = 2,
+                    title = "US GDP Forecasts",
+                    horizon = "Horizon h = 2",
+                    y_name_GDP = "US GDP (Billions of Dollars)")
+# h = 3
+final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
+                    rf_nonTunend = rf_rolling_GDP_fc, 
+                    rf_Tunend = rf_rolling_hyperopt_level, 
+                    rf_lag = rf_rolling_hyperopt_level_lag, 
+                    rf_ts = rf_rolling_GDP_hyperopt_ts,
+                    h = 3,
+                    title = "US GDP Forecasts",
+                    horizon = "Horizon h = 3",
+                    y_name_GDP = "US GDP (Billions of Dollars)")
+# h = 4
+final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
+                    rf_nonTunend = rf_rolling_GDP_fc, 
+                    rf_Tunend = rf_rolling_hyperopt_level, 
+                    rf_lag = rf_rolling_hyperopt_level_lag, 
+                    rf_ts = rf_rolling_GDP_hyperopt_ts,
+                    h = 4,
+                    title = "US GDP Forecasts",
+                    horizon = "Horizon h = 4",
+                    y_name_GDP = "US GDP (Billions of Dollars)")
+# the larger the horizon, the less coming back from financial crises 
+
 
 
 
 ### to do:
 # plots in paper with qqplot 
-# using rangerts !!!
 # comparing forecasting errors when not including corona 
-# use lagged gdp values...

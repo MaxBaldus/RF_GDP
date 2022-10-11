@@ -226,7 +226,7 @@ dm_tests = function(gdp, h_num, result_rf, result_arma){
   dm = list(rep(0,4)) # initialize
   
   for (h in 1:(h_num-1)) {
-  
+
     e_arma = gdp[h:length(gdp)] - result_arma[1:(nrow(result_arma)-h),2+((2*h)-1)] # starting with h = 1
     e_rf = gdp - result_rf[,2+((2*h)-1)]
     #print(paste0("current h = ", h))

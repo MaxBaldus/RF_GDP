@@ -168,6 +168,8 @@ create_df = function(df, gdp){
   return(data)
 }
 ##############################################################################################
+# using updated GDP data
+##############################################################################################
 # groups:
 # Index: 1:20 = REAL ACTIVITY ; 21:47 = EMPLOYMENT ; 48:60 = HOUSING ; 
 # 61:75 = INTEREST RATE ; 76:104 = INFLATION ; 105:113 = FINANCIAL MARKET ;
