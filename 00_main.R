@@ -36,7 +36,7 @@ source("02_data_cleaning.R")
 data = suppressWarnings(create_df_2(df_2, gdp)) 
 # if p_value of adf test = 0.01, it is actually smaller 
 # the raised Warning: p-value smaller than printed p-value, is surpressed
-View(data)
+str(data)
 
 ##############################################################################################
 # plotting gdp
@@ -308,11 +308,9 @@ imp = randomForest::varImpPlot(rf_plain_growth$forest)
 # variable importance plot using ggplot
 source("04_plots.R")
 imp_plot(imp) # importance plot of the aggreagted node-purity per category
-# jpeg(file="output/Importance.jpeg")
-# imp_plot(imp)
-# dev.off()
-# #save as pdf
-# pdf(file = "output/Importance")
+
+# save plot once
+# pdf(file = "output/Importance.pdf")
 # imp_plot(imp)
 # dev.off()
 ##############################################################################################
@@ -371,8 +369,8 @@ plot.data = data.frame(ntrees = 1:ntree, oob = rf_plain_growth$forest$mse,
 colors = c("OOB" = "black", "Test Error" = "blue", "CV Error" = "red")
 ggplot_errors(df = plot.data, colors = colors)
 
-# # save as vector-image (only once)
-# pdf(file = "output/Errors")
+# save as vector-image (only once)
+# pdf(file = "output/Errors.pdf")
 # ggplot_errors(df = plot.data, colors = colors)
 # dev.off()
 
@@ -687,7 +685,7 @@ start_time = Sys.time()
 hyper_oob_final_growth = rf_ranger_oob(df = data, mtry_grid, samp_size_grid, node_size_grid, 
                                 500, hyper_para_list = hyper_oob_final_growth)
 
-saveRDS(hyper_oob_final_growth, file = "output/hyperparams_oob_growth.rda") # save hyper_oob_final 
+# saveRDS(hyper_oob_final_growth, file = "output/hyperparams_oob_growth.rda") # save hyper_oob_final 
 end_time = Sys.time()
 print(paste("estimation time: ", end_time-start_time))
 # read hyperparameters
@@ -703,7 +701,7 @@ hyper_oob_final_level = rf_ranger_oob_level(df = data, mtry_grid, samp_size_grid
                                        500, hyper_para_list = hyper_oob_final_level,
                                        gdp = data$GDPC1)
 
-saveRDS(hyper_oob_final_level, file = "output/hyperparams_oob_level.rda") # save hyper_oob_final 
+# saveRDS(hyper_oob_final_level, file = "output/hyperparams_oob_level.rda") # save hyper_oob_final 
 end_time = Sys.time()
 print(paste("estimation time: ", end_time-start_time))
 # read hyperparameters
@@ -728,7 +726,7 @@ Sys.time()
 start_time = Sys.time()
 hyper_test_final = rf_hyper_test_set(df = data, mtry_grid, samp_size_grid, node_size_grid, 500, 
                                      hyper_para_list = hyper_test_final)
-saveRDS(hyper_test_final, file = "output/hyper_test_final.rda")
+#saveRDS(hyper_test_final, file = "output/hyper_test_final.rda")
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
 
@@ -744,7 +742,7 @@ Sys.time()
 start_time = Sys.time()
 hyper_test_final_level = rf_hyper_test_set_level(df = data, mtry_grid, samp_size_grid, node_size_grid, 500, 
                                      hyper_para_list = hyper_test_final_level, gdp = data$GDPC1)
-saveRDS(hyper_test_final_level, file = "output/hyper_test_final_level.rda")
+# saveRDS(hyper_test_final_level, file = "output/hyper_test_final_level.rda")
 end_time = Sys.time()
 print(paste("estimation time", end_time-start_time))
 # read hyperparameters
@@ -768,8 +766,10 @@ hyper_test_final_level = readRDS("output/hyper_test_final_level.rda")
 # read hyper parameter list
 hyper_oob_final_growth = readRDS("output/hyperparams_oob_growth.rda") # oob growth
 hyper_oob_final_level = readRDS("output/hyperparams_oob_level.rda") # oob GDP
-# hyper_test_final = readRDS("output/hyper_test_final.rda") # test growth
-# hyper_test_final_level = readRDS("output/hyper_test_final_level.rda") # test GDP
+
+hyper_test_final = readRDS("output/hyper_test_final.rda") # test growth
+hyper_test_final_level = readRDS("output/hyper_test_final_level.rda") # test GDP
+
 ### 1) oob error 
 ### 1a) GDP GROWTH
 source("06_rf.R")
@@ -795,18 +795,18 @@ source("05_functions.R")
 eval_for_rf_hyperopt = eval_forc_rf(rf_rolling_growth_hyperopt, forh)
 print(eval_for_rf_hyperopt)
 # $me
-# [1] 0.0007618491 0.0008347875 0.0016160759 0.0013445981 0.0013970164
+# [1] 0.0006128271 0.0009768571 0.0019614065 0.0014173337 0.0014897087
 # 
 # $mse
-# [1] 0.0001044614 0.0002875815 0.0003004401 0.0002476021 0.0002368996
+# [1] 0.0001041700 0.0002754375 0.0002841820 0.0002454053 0.0002318177
 # 
 # $mae
-# [1] 0.002833917 0.006583654 0.006699152 0.006844096 0.006818618
+  # [1] 0.002472820 0.006514005 0.006633912 0.006812798 0.006871087
 # 
 # $rmse
-# [1] 0.01022063 0.01695823 0.01733321 0.01573538 0.01539154
+# [1] 0.01020637 0.01659631 0.01685770 0.01566542 0.01522556
 # 
-print(eval_for_rf) 
+# print(eval_for_rf) 
 # Theil's U and DM TEST 
 source("05_functions.R")
 ### DM test GDP GROWTH forecasts, for each h 
@@ -1037,7 +1037,7 @@ start_time = Sys.time()
 hyper_oob_final_growth_ts = rf_ranger_oob_ts(df = data, mtry_grid, block_size_grid, node_size_grid, 
                                        500, hyper_para_list = hyper_oob_final_growth_ts)
 
-saveRDS(hyper_oob_final_growth_ts, file = "output/hyperparams_oob_growth_ts.rda") # save hyper_oob_final 
+# saveRDS(hyper_oob_final_growth_ts, file = "output/hyperparams_oob_growth_ts.rda") # save hyper_oob_final 
 end_time = Sys.time()
 print(paste("estimation time: ", end_time-start_time))
 
@@ -1052,7 +1052,7 @@ hyper_oob_final_level_ts = rf_ranger_oob_level_ts(df = data, mtry_grid, block_si
                                             500, hyper_para_list = hyper_oob_final_level_ts,
                                             gdp = data$GDPC1)
 
-saveRDS(hyper_oob_final_level_ts, file = "output/hyperparams_oob_level_ts.rda") # save hyper_oob_final 
+# saveRDS(hyper_oob_final_level_ts, file = "output/hyperparams_oob_level_ts.rda") # save hyper_oob_final 
 end_time = Sys.time()
 print(paste("estimation time: ", end_time-start_time))
 
@@ -1181,6 +1181,7 @@ source("04_plots.R")
 colors_growth = c("GDP growth" = "black", "ARMA" = "blue", "RF-nonTuned" = "green",
            "RF-Tuned" = "purple", "RF-Lags" = "pink", "RF-tsBootstrapping" = "orange")
 # h = 0
+#pdf(file = "output/Growth_h0.pdf")
 final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
                     rf_nonTunend = rf_plain_rolling_fc, 
                     rf_Tunend = rf_rolling_growth_hyperopt, 
@@ -1192,7 +1193,9 @@ final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth,
                     y_name_GDP = "Growth rate in %",
                     colors = colors_growth,
                     colorname = "GDP growth")
+#dev.off()
 # h = 1
+#pdf(file = "output/Growth_h1.pdf")
 final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
                     rf_nonTunend = rf_plain_rolling_fc, 
                     rf_Tunend = rf_rolling_growth_hyperopt, 
@@ -1204,7 +1207,9 @@ final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth,
                     y_name_GDP = "Growth rate in %",
                     colors = colors_growth,
                     colorname = "GDP growth")
+#dev.off()
 # h = 2
+#pdf(file = "output/Growth_h2.pdf")
 final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
                     rf_nonTunend = rf_plain_rolling_fc, 
                     rf_Tunend = rf_rolling_growth_hyperopt, 
@@ -1216,7 +1221,9 @@ final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth,
                     y_name_GDP = "Growth rate in %",
                     colors = colors_growth,
                     colorname = "GDP growth")
+#dev.off()
 # h = 3
+#pdf(file = "output/Growth_h3.pdf")
 final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
                     rf_nonTunend = rf_plain_rolling_fc, 
                     rf_Tunend = rf_rolling_growth_hyperopt, 
@@ -1228,7 +1235,9 @@ final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth,
                     y_name_GDP = "Growth rate in %",
                     colors = colors_growth,
                     colorname = "GDP growth")
+#dev.off()
 # h = 4
+#pdf(file = "output/Growth_h4.pdf")
 final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth, 
                     rf_nonTunend = rf_plain_rolling_fc, 
                     rf_Tunend = rf_rolling_growth_hyperopt, 
@@ -1240,11 +1249,13 @@ final_forecast_plot(data, gdp = data$GDP_GR, arma = result_ar_growth,
                     y_name_GDP = "Growth rate in %",
                     colors = colors_growth,
                     colorname = "GDP growth")
+#dev.off()
 
 ### GDP
 colors_GDP = c("GDP" = "black", "ARMA" = "blue", "RF-nonTuned" = "green",
                   "RF-Tuned" = "purple", "RF-Lags" = "pink", "RF-tsBootstrapping" = "orange")
 # h = 0
+#pdf(file = "output/GDP_h0.pdf")
 final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
                     rf_nonTunend = rf_rolling_GDP_fc, 
                     rf_Tunend = rf_rolling_hyperopt_level, 
@@ -1256,7 +1267,9 @@ final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar,
                     y_name_GDP = "US GDP (Billions of Dollars)",
                     colors = colors_GDP,
                     colorname = "GDP")
+#dev.off()
 # h = 1
+#pdf(file = "output/GDP_h1.pdf")
 final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
                     rf_nonTunend = rf_rolling_GDP_fc, 
                     rf_Tunend = rf_rolling_hyperopt_level, 
@@ -1268,7 +1281,9 @@ final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar,
                     y_name_GDP = "US GDP (Billions of Dollars)",
                     colors = colors_GDP,
                     colorname = "GDP")
+#dev.off()
 # h = 2
+#pdf(file = "output/GDP_h2.pdf")
 final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
                     rf_nonTunend = rf_rolling_GDP_fc, 
                     rf_Tunend = rf_rolling_hyperopt_level, 
@@ -1280,7 +1295,9 @@ final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar,
                     y_name_GDP = "US GDP (Billions of Dollars)",
                     colors = colors_GDP,
                     colorname = "GDP")
+#dev.off()
 # h = 3
+#pdf(file = "output/GDP_h3.pdf")
 final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
                     rf_nonTunend = rf_rolling_GDP_fc, 
                     rf_Tunend = rf_rolling_hyperopt_level, 
@@ -1292,7 +1309,9 @@ final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar,
                     y_name_GDP = "US GDP (Billions of Dollars)",
                     colors = colors_GDP,
                     colorname = "GDP")
+#dev.off()
 # h = 4
+#pdf(file = "output/GDP_h4.pdf")
 final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar, 
                     rf_nonTunend = rf_rolling_GDP_fc, 
                     rf_Tunend = rf_rolling_hyperopt_level, 
@@ -1304,11 +1323,6 @@ final_forecast_plot(data, gdp = data$GDPC1, arma = result_ar,
                     y_name_GDP = "US GDP (Billions of Dollars)",
                     colors = colors_GDP,
                     colorname = "GDP")
+#dev.off()
 # the larger the horizon, the less coming back from financial crises 
 
-
-
-
-### to do:
-# plots in paper with qqplot 
-# comparing forecasting errors when not including corona 

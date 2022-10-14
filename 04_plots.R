@@ -96,7 +96,7 @@ ggplot_errors = function(df, colors){
 
 # variable importance plot 
 imp_plot = function(varImpobject){
-  
+
   imp = as.data.frame(varImpobject)
   imp$varnames = rownames(imp) # row names into column
   rownames(imp) = NULL # delete rownames  
@@ -104,32 +104,38 @@ imp_plot = function(varImpobject){
   imp$var_categ = c(rep(1, 20), rep(2, 27), rep(3, 13), rep(4, 15),
                     rep(5,29), rep(6,9), rep(7,20), rep(8,11), 9, 10)
   # add up the percentage increase in MSE for each group
-
+  
   imp_groups = as.data.frame(matrix(NA, nrow = 10, ncol = 2))
   counter = 1
   slice_0 = 1
   slice_1 = 20
   for (i in c(27,13,15,29,9,20,11,1,1)) {
-    imp_groups[counter,1] = sum(imp$IncNodePurity[slice_0:slice_1])
+    imp_groups[counter,1] = sum(imp$`%IncMSE`[slice_0:slice_1])
     counter = counter + 1
     slice_0 = slice_1 + 1
     slice_1 = slice_1 + i
   }
-  imp_groups[10,1] = imp$IncNodePurity[length(imp$IncNodePurity)] # value of last group
+  
+  
+  imp_groups[10,1] = imp$`%IncMSE`[length(imp$`%IncMSE`)] # value of last group
   
   imp_groups[,1] * 100 # scaling for better readability
   imp_groups[,2] = seq(1,10,1) # assign number of each group
   imp_groups$varnames = c("REAL ACTIVITY", "EMPLOYMENT", "HOUSING", "INTEREST RATE",
                           "INFLATION", "FINANCIAL MARKET", "MONEY", "CREDIT", "OILPRICE",
                           "FFR") # goup names
-  colnames(imp_groups) = c("IncNodePurity", "var_categ", "varnames") # new column names
+  colnames(imp_groups) = c("%IncMSE", "var_categ", "varnames") # new column names
   # ggplot
-  ggplot(imp_groups, aes(x=reorder(varnames, IncNodePurity), y=IncNodePurity, color=as.factor(var_categ))) + 
+
+  ggplot(imp_groups, aes(x=reorder(varnames, `%IncMSE`), y=`%IncMSE`
+                         # , color=as.factor(var_categ)
+                         )) + 
     geom_point() +
-    geom_segment(aes(x=varnames,xend=varnames,y=0,yend=IncNodePurity)) +
-    scale_color_discrete(name="Variable Group") +
-    ylab("IncNodePurity") +
+    geom_segment(aes(x=varnames,xend=varnames,y=0,yend=`%IncMSE`)) +
+    scale_color_discrete(name="Groups") +
+    ylab("%IncMSE") +
     xlab("Series ID") +
+    # theme(legend.position="none")
     coord_flip()
 }
 
