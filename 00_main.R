@@ -1156,7 +1156,7 @@ print(eval_GDP_rf_hyperopt_ts)
 # Theil's U and DM TEST 
 source("05_functions.R")
 ### DM test GDP GROWTH forecasts, for each h 
-dm_GDP_ts = dm_tests(gdp = data$GDP_GR[which(data$dates == 2000.00):length(data$dates)], 
+dm_GDP_ts = dm_tests(gdp = data$GDPC1[which(data$dates == 2000.00):length(data$dates)], 
                         h_num = 5,
                         result_rf = rf_rolling_GDP_hyperopt_ts, result_arma = result_ar)
 print(dm_GDP_ts)

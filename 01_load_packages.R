@@ -17,7 +17,7 @@ install_and_load = function(a){
     install.packages("usethis")
     install.packages("devtools")
     library(devtools) # devools needed to install directly from github
-    devtools::install_github("hyanworkspace/rangerts", quiet = T) # boostrapping for ts
+    devtools::install_github("hyanworkspace/rangerts", quiet = T) # bootstrapping for ts
     
   } 
   # load packages
